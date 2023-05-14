@@ -6,5 +6,6 @@ parameters:
     - tests
   tmpDir: build
   ignoreErrors:
-    - message: '#Access to an undefined property Olifanton\\TypedArrays\\Uint8Array::\$length#'
+    - message: '#Call to an undefined method FFI::#'
+    - message: '#Call to an undefined method FFI::\\TypedArrays\\Uint8Array::\$length#'
     - message: '#Access to protected property Olifanton\\TypedArrays\\Uint8Array::\$buffer#'

@@ -1,10 +1,16 @@
-<?php declare(strict_types=1);
+<?php /** @noinspection PhpUndefinedMethodInspection */
+
+declare(strict_types=1);
 
 namespace Olifanton\TonlibjsonTransport\Tonlibjson;
 
 use FFI\CData;
 use FFI\Scalar\Type;
+use Olifanton\TonlibjsonTransport\VerbosityLevel;
 
+/**
+ * @noinspection
+ */
 class TonlibInstance
 {
     private \FFI $ffi;
@@ -22,26 +28,63 @@ class TonlibInstance
         $this->ffi = \FFI::cdef($cDef, $libPath);
     }
 
-    public function create(): CData
+    public function create(): Client
     {
-        /** @noinspection PhpUndefinedMethodInspection */
-        return $this->ffi->tonlib_client_json_create();
+        return new Client($this->ffi->tonlib_client_json_create());
     }
 
-    public function destroy(CData $client): void
+    public function destroy(Client $client): void
     {
-        /** @noinspection PhpUndefinedMethodInspection */
-        $this->ffi->tonlib_client_json_destroy($client);
+        $this->ffi->tonlib_client_json_destroy($client->ptr);
     }
 
-    public function receive(CData $client, float $timeout): CData
+    public function send(Client $client, string $request): void
     {
-        /** @noinspection PhpUndefinedMethodInspection */
-        return $this
+        $this
             ->ffi
+            ->tonlib_client_json_send(
+                $client->ptr,
+                Type::string($request),
+            );
+    }
+
+    public function execute(Client $client, string $request): ?string
+    {
+        /** @var ?CData $data */
+        $data = $this
+            ->ffi
+            ->tonlib_client_json_execute(
+                $client->ptr,
+                Type::string($request),
+            );
+
+        if ($data) {
+            return Type::toString($data);
+        }
+
+        return null;
+    }
+
+    public function receive(Client $client, float $timeout): ?string
+    {
+        /** @var ?CData $data */
+        $data = $this
+            ->ffi
+            /**  */
             ->tonlib_client_json_receive(
-                $client,
+                $client->ptr,
                 Type::double($timeout),
             );
+
+        if ($data) {
+            return Type::toString($data);
+        }
+
+        return null;
+    }
+
+    public function setVerbosityLevel(VerbosityLevel $level): void
+    {
+        $this->ffi->tonlib_client_set_verbosity_level(Type::int($level->value));
     }
 }
