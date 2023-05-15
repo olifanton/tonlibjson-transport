@@ -3,56 +3,97 @@
 namespace Olifanton\TonlibjsonTransport;
 
 use Olifanton\TonlibjsonTransport\Exceptions\LibraryLocationException;
+use Olifanton\TonlibjsonTransport\Helpers\Filesystem;
 
 class Locator
 {
-    private array $map = [
+    protected static array $map = [
         "tonlibjson-linux-x86_64.so" => [
             "os_family" => "linux",
             "arch" => ["x86_64", "amd64"],
+            "platform" => Platform::LINUX_X64,
         ],
         "tonlibjson-linux-arm64.so" => [
             "os_family" => "linux",
             "arch" => ["arm64", "aarch64"],
+            "platform" => Platform::LINUX_ARM,
         ],
         "tonlibjson-mac-arm64.dylib" => [
-            "os_family" => "darwmin",
-            "arch" => ["arm64", "aarch64"], // @TODO Check
+            "os_family" => "darwin",
+            "arch" => ["arm64", "aarch64"],
+            "platform" => Platform::MAC_APPLE_SILICON,
         ],
-        "tonlibjson-mac-x86-64.dylib" => [
-            "os_family" => "darwmin",
+        "tonlibjson-mac-x86-64.dylib" => [ // @TODO: Check this case
+            "os_family" => "darwin",
             "arch" => ["x86_64"],
+            "platform" => Platform::MAC_INTEL,
         ],
-        "tonlibjson.dll" => [
+        "tonlibjson.dll" => [ // @TODO: Check this case
             "os_family" => "windows",
             "arch" => ["x86_64"],
+            "platform" => Platform::WIN_X64,
         ],
     ];
 
-    private ?string $libraryName = null;
+    /**
+     * @var string|null
+     */
+    protected static ?string $libraryName = null;
 
     public function __construct(
-        private readonly string $basePath,
-    ) {}
-
-    /**
-     * @throws LibraryLocationException
-     */
-    public function locateName(): string
+        private string $basePath,
+    )
     {
-        if ($this->libraryName) {
-            return $this->basePath;
-        }
+        $this->basePath = Filesystem::normalizeDir($basePath);
+    }
 
-        $osFamily = strtolower(PHP_OS_FAMILY);
-        $arch = strtolower(php_uname("m"));
+    public static function getPlatform(): ?Platform
+    {
+        [$osFamily, $arch] = self::getOsArchPair();
 
-        foreach ($this->map as $libraryName => ["os_family" => $fOsFamily, "arch" => $fArch]) {
+        foreach (self::$map as $libraryName => ["os_family" => $fOsFamily, "arch" => $fArch, "platform" => $fPlatform]) {
             /** @var string $fOsFamily */
             /** @var string[] $fArch */
 
             if ($osFamily === $fOsFamily && in_array($arch, $fArch)) {
-                $this->libraryName = $libraryName;
+                return $fPlatform;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @throws LibraryLocationException
+     */
+    public static function getName(Platform $platform): string
+    {
+        foreach (self::$map as $libraryName => ["platform" => $fPlatform]) {
+            if ($fPlatform === $platform) {
+                return $libraryName;
+            }
+        }
+
+        throw new LibraryLocationException("Not found library for " . $platform->name);
+    }
+
+    /**
+     * @throws LibraryLocationException
+     */
+    public static function locateName(): string
+    {
+        if (self::$libraryName) {
+            return self::$libraryName;
+        }
+
+        [$osFamily, $arch] = self::getOsArchPair();
+
+        foreach (self::$map as $libraryName => ["os_family" => $fOsFamily, "arch" => $fArch]) {
+            /** @var string $fOsFamily */
+            /** @var string[] $fArch */
+
+            if ($osFamily === $fOsFamily && in_array($arch, $fArch)) {
+                self::$libraryName = $libraryName;
 
                 return $libraryName;
             }
@@ -70,6 +111,14 @@ class Locator
      */
     public function locatePath(): string
     {
-        return $this->basePath . DIRECTORY_SEPARATOR . $this->locateName();
+        return $this->basePath . DIRECTORY_SEPARATOR . self::locateName();
+    }
+
+    /**
+     * @return string[]
+     */
+    protected final static function getOsArchPair(): array
+    {
+        return [strtolower(PHP_OS_FAMILY), strtolower(php_uname("m"))];
     }
 }
