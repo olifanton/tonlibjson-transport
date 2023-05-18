@@ -85,6 +85,6 @@ class TonlibInstance
 
     public function setVerbosityLevel(VerbosityLevel $level): void
     {
-        $this->ffi->tonlib_client_set_verbosity_level(Type::int($level->value));
+        $this->ffi->tonlib_client_set_verbosity_level($level->value);
     }
 }

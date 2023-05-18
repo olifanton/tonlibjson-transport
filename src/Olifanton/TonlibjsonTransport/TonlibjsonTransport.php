@@ -16,6 +16,13 @@ use Olifanton\TypedArrays\Uint8Array;
 class TonlibjsonTransport implements Transport
 {
     /**
+     * @param string[] $liteServers
+     */
+    public function __construct(
+        private readonly array $liteServers,
+    ) {}
+
+    /**
      * @inheritDoc
      * @throws TransportException
      */
