@@ -5,7 +5,7 @@ namespace Olifanton\TonlibjsonTransport;
 use Olifanton\TonlibjsonTransport\Exceptions\LibraryLocationException;
 use Olifanton\TonlibjsonTransport\Helpers\Filesystem;
 
-class Locator
+class Locator implements LocatorInterface
 {
     protected static array $map = [
         "tonlibjson-linux-x86_64.so" => [
@@ -47,6 +47,9 @@ class Locator
         $this->basePath = Filesystem::normalizeDir($basePath);
     }
 
+    /**
+     * @inheritDoc
+     */
     public static function getPlatform(): ?Platform
     {
         [$osFamily, $arch] = self::getOsArchPair();
@@ -64,7 +67,7 @@ class Locator
     }
 
     /**
-     * @throws LibraryLocationException
+     * @inheritDoc
      */
     public static function getName(Platform $platform): string
     {
@@ -78,7 +81,7 @@ class Locator
     }
 
     /**
-     * @throws LibraryLocationException
+     * @inheritDoc
      */
     public static function locateName(): string
     {
@@ -107,7 +110,7 @@ class Locator
     }
 
     /**
-     * @throws LibraryLocationException
+     * @inheritDoc
      */
     public function locatePath(): string
     {

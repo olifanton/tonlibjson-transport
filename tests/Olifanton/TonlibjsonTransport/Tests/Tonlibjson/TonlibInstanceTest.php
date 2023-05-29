@@ -10,6 +10,9 @@ use PHPUnit\Framework\TestCase;
 
 class TonlibInstanceTest extends TestCase
 {
+    /**
+     * @throws \Throwable
+     */
     private function getInstance(): TonlibInstance
     {
         $locator = new Locator(BIN_LIB_PATH);
@@ -20,7 +23,7 @@ class TonlibInstanceTest extends TestCase
     }
 
     /**
-     * @return void
+     * @throws \Throwable
      */
     public function testCreateAndDestroyClient(): void
     {

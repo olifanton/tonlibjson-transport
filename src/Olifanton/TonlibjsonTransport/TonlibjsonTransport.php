@@ -12,14 +12,15 @@ use Olifanton\Ton\Contracts\Messages\ResponseStack;
 use Olifanton\Ton\Exceptions\TransportException;
 use Olifanton\Ton\Transport;
 use Olifanton\TypedArrays\Uint8Array;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 
-class TonlibjsonTransport implements Transport
+class TonlibjsonTransport implements Transport, LoggerAwareInterface
 {
-    /**
-     * @param string[] $liteServers
-     */
+    use LoggerAwareTrait;
+
     public function __construct(
-        private readonly array $liteServers,
+        private readonly ClientPool $pool,
     ) {}
 
     /**
