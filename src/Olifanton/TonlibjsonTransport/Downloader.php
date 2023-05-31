@@ -8,6 +8,7 @@ use Http\Discovery\HttpClientDiscovery;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Olifanton\TonlibjsonTransport\Exceptions\LibraryLocationException;
 use Olifanton\TonlibjsonTransport\Helpers\Filesystem;
+use Olifanton\TonlibjsonTransport\Helpers\HttpClientFactory;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 
@@ -24,13 +25,7 @@ class Downloader implements LoggerAwareInterface
 
     public static function discovered(): self
     {
-        $httpClient = new HttpMethodsClient(
-            HttpClientDiscovery::find(),
-            Psr17FactoryDiscovery::findRequestFactory(),
-            Psr17FactoryDiscovery::findStreamFactory(),
-        );
-
-        return new self($httpClient, new Filesystem());
+        return new self(HttpClientFactory::discovered(), new Filesystem());
     }
 
     /**
@@ -43,7 +38,7 @@ class Downloader implements LoggerAwareInterface
             throw new \RuntimeException("Directory $targetDirectory is not exists");
         }
 
-        $lib = $platform ? Locator::getName($platform) : Locator::locateName();
+        $lib = $platform ? GenericLocator::getName($platform) : GenericLocator::locateName();
         $targetFile = Filesystem::normalizeDir($targetDirectory) . DIRECTORY_SEPARATOR . $lib;
 
         if ($this->fs->isFileExists($targetFile)) {

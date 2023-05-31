@@ -2,11 +2,9 @@
 
 namespace Olifanton\TonlibjsonTransport;
 
-use Http\Client\Common\HttpMethodsClientInterface;
-use Olifanton\Ton\Marshalling\Exceptions\MarshallingException;
-use Olifanton\Ton\Marshalling\Json\Hydrator;
 use Olifanton\TonlibjsonTransport\Exceptions\BuilderException;
 use Olifanton\TonlibjsonTransport\Exceptions\LibraryLocationException;
+use Olifanton\TonlibjsonTransport\Helpers\HttpClientFactory;
 use Olifanton\TonlibjsonTransport\Models\LiteServer;
 use Olifanton\TonlibjsonTransport\Pool\RandomSelector;
 use Olifanton\TonlibjsonTransport\Pool\Selector;
@@ -20,7 +18,7 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
 
     private string $configUrl;
 
-    private ?LocatorInterface $locator = null;
+    private ?Locator $locator = null;
 
     private ?string $libDirectory = null;
 
@@ -31,16 +29,23 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
 
     private ?Selector $poolSelector = null;
 
-    public function __construct(
-        private readonly HttpMethodsClientInterface $httpClient, // FIXME: Remove this dependency, optional `LiteServerRepository` needed
-    )
+    private ?LiteServerRepository $liteServerRepository = null;
+
+    public function __construct(bool $isMainnet = true)
     {
-        $this->configUrl = ConfigUrl::MAINNET->value;
+        $this->configUrl = $isMainnet ? ConfigUrl::MAINNET->value : ConfigUrl::TESTNET->value;
     }
 
-    public function setConfigUrl(ConfigUrl|string $configUrl): self // FIXME: Move to HttpConfigRepository
+    public function setConfigUrl(ConfigUrl|string $configUrl): self
     {
         $this->configUrl = $configUrl instanceof ConfigUrl ? $configUrl->value : $configUrl;
+
+        return $this;
+    }
+
+    public function setLiteServerRepository(LiteServerRepository $liteServerRepository): self
+    {
+        $this->liteServerRepository = $liteServerRepository;
 
         return $this;
     }
@@ -55,7 +60,7 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
         return $this;
     }
 
-    public function setLocator(LocatorInterface $locator): self
+    public function setLocator(Locator $locator): self
     {
         $this->locator = $locator;
 
@@ -81,33 +86,44 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
      */
     public function build(): TonlibjsonTransport
     {
-        if (!$this->locator) {
-            if (!$this->libDirectory) {
-                throw new BuilderException(
-                    "For automatic Locator, you need to specify `libDirectory`",
-                );
-            }
+        $instance = new TonlibjsonTransport(
+            $this->createPool(
+                $this->createTonlib(),
+            ),
+        );
 
-            $this->locator = new Locator($this->libDirectory);
+        if ($this->logger) {
+            $instance->setLogger($this->logger);
         }
 
-        if (!$this->liteServers) {
-            try {
-                $this->liteServers = $this->fetchLiteServers();
-            } catch (\JsonException|\Http\Client\Exception|MarshallingException $e) {
-                throw new BuilderException(
-                    sprintf(
-                        "Liteservers fetching error: %s",
-                        $e->getMessage(),
-                    ),
-                    $e->getCode(),
-                    $e,
-                );
-            }
+        return $instance;
+    }
+
+    /**
+     * @throws BuilderException
+     */
+    protected function createPool(TonlibInstance $tonlib): ClientPool
+    {
+        $instance = new ClientPool(
+            $tonlib,
+            $this->getLiteServers(),
+            $this->poolSelector ?? $this->createPoolSelector(),
+        );
+
+        if ($this->logger) {
+            $instance->setLogger($this->logger);
         }
 
+        return $instance;
+    }
+
+    /**
+     * @throws BuilderException
+     */
+    protected function createTonlib(): TonlibInstance
+    {
         try {
-            $tonlib = new TonlibInstance($this->locator->locatePath());
+            return new TonlibInstance($this->getLocator()->locatePath());
         } catch (LibraryLocationException $e) {
             throw new BuilderException(
                 sprintf(
@@ -118,53 +134,63 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
                 $e,
             );
         }
+    }
 
-        $pool = new ClientPool(
-            $tonlib,
-            $this->liteServers,
-            $this->poolSelector ?? new RandomSelector(),
-        );
+    protected function createPoolSelector(): Selector
+    {
+        return new RandomSelector();
+    }
 
-        if ($this->logger) {
-            $pool->setLogger($this->logger);
+    /**
+     * @throws BuilderException
+     */
+    protected function getLocator(): Locator
+    {
+        if (!$this->locator) {
+            if (!$this->libDirectory) {
+                throw new BuilderException(
+                    "For automatic Locator, you need to specify `libDirectory`",
+                );
+            }
+
+            return new GenericLocator($this->libDirectory);
         }
 
-        $instance = new TonlibjsonTransport($pool);
-
-        if ($this->logger) {
-            $instance->setLogger($this->logger);
-        }
-
-        return $instance;
+        return $this->locator;
     }
 
     /**
      * @return LiteServer[]
-     * @throws \Http\Client\Exception
-     * @throws \JsonException
-     * @throws MarshallingException
+     * @throws BuilderException
      */
-    protected function fetchLiteServers(): array // FIXME Move to HttpConfigRepository
+    protected function getLiteServers(): array
     {
-        $configJson = $this->httpClient->get($this->configUrl)->getBody()->getContents();
-        $config = json_decode($configJson, true, flags: JSON_THROW_ON_ERROR);
-
-        if (!isset($config["liteservers"])) {
-            $this
-                ->logger
-                ?->error(
-                    "Bad config response",
-                    [
-                        "response" => $configJson,
-                    ]
-                );
-
-            throw new \RuntimeException("Bad config response");
+        if (!$this->liteServers) {
+            try {
+                return $this->getLiteServerRepository()->getList();
+            } catch (Exceptions\LiteServerFetchingException $e) {
+                throw new BuilderException($e->getMessage(), $e->getCode(), $e);
+            }
         }
 
-        return array_map(
-            static fn(array $ls) => Hydrator::extract(LiteServer::class, $ls),
-            $config["liteservers"],
-        );
+        return $this->liteServers;
+    }
+
+    protected function getLiteServerRepository(): LiteServerRepository
+    {
+        if (!$this->liteServerRepository) {
+            $liteServerRepository = new HttpLiteServerRepository(
+                HttpClientFactory::discovered(),
+                $this->configUrl,
+            );
+
+            if ($this->logger) {
+                $liteServerRepository->setLogger($this->logger);
+            }
+
+            return $liteServerRepository;
+        }
+
+        return $this->liteServerRepository;
     }
 }

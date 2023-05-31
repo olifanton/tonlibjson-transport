@@ -14,7 +14,7 @@ class LiteServer
     public readonly int $port;
 
     #[JsonMap(serializer: JsonMap::SER_TYPE, param0: LiteServerId::class)]
-    public readonly array $id;
+    public readonly LiteServerId $id;
 
     /**
      * @throws \Olifanton\Ton\Marshalling\Exceptions\MarshallingException

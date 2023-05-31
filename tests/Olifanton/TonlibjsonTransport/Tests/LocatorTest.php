@@ -3,7 +3,7 @@
 namespace Olifanton\Ton\Tests;
 
 use Olifanton\TonlibjsonTransport\Exceptions\LibraryLocationException;
-use Olifanton\TonlibjsonTransport\Locator;
+use Olifanton\TonlibjsonTransport\GenericLocator;
 use Olifanton\TonlibjsonTransport\Platform;
 use PHPUnit\Framework\TestCase;
 
@@ -14,7 +14,7 @@ class LocatorTest extends TestCase
     protected function setUp(): void
     {
         if (!$this->platform) {
-            $this->platform = Locator::getPlatform();
+            $this->platform = GenericLocator::getPlatform();
 
             if (!$this->platform) {
                 throw new \RuntimeException(sprintf(
@@ -31,7 +31,7 @@ class LocatorTest extends TestCase
      */
     public function testLocatePath(): void
     {
-        $locator = new Locator("/lib/");
+        $locator = new GenericLocator("/lib/");
 
         switch ($this->platform) {
             case Platform::LINUX_X64:

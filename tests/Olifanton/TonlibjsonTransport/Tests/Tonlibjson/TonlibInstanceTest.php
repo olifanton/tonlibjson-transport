@@ -3,7 +3,7 @@
 namespace Olifanton\Ton\Tests\Tonlibjson;
 
 use FFI\CData;
-use Olifanton\TonlibjsonTransport\Locator;
+use Olifanton\TonlibjsonTransport\GenericLocator;
 use Olifanton\TonlibjsonTransport\Tonlibjson\TonlibInstance;
 use Olifanton\TonlibjsonTransport\VerbosityLevel;
 use PHPUnit\Framework\TestCase;
@@ -15,7 +15,7 @@ class TonlibInstanceTest extends TestCase
      */
     private function getInstance(): TonlibInstance
     {
-        $locator = new Locator(BIN_LIB_PATH);
+        $locator = new GenericLocator(BIN_LIB_PATH);
         $instance = new TonlibInstance($locator->locatePath());
         $instance->setVerbosityLevel(VerbosityLevel::FATAL);
 
