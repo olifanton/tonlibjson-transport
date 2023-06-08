@@ -3,19 +3,14 @@
 namespace Olifanton\TonlibjsonTransport;
 
 use Olifanton\TonlibjsonTransport\Pool\Selector;
-use Olifanton\TonlibjsonTransport\Tonlibjson\TonlibInstance;
+use Olifanton\TonlibjsonTransport\Tonlibjson\Client;
 use Psr\Log\LoggerAwareInterface;
-use Psr\Log\LoggerAwareTrait;
 
-class ClientPool implements LoggerAwareInterface
+interface ClientPool extends LoggerAwareInterface
 {
-    use LoggerAwareTrait;
+    public function borrow(): Client;
 
-    public function __construct(
-        private readonly TonlibInstance $tonlib,
-        private readonly array $liteServers,
-        private readonly Selector $selector,
-    ) {}
+    public function return(Client $client): void;
 
-    // @TODO
+    public function close(): void;
 }

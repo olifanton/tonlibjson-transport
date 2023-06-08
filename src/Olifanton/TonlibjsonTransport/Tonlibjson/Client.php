@@ -8,5 +8,6 @@ class Client
 {
     public function __construct(
         public readonly CData $ptr,
+        public readonly string $id,
     ) {}
 }

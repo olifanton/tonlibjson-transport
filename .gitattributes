@@ -7,3 +7,4 @@
 /clover.xml     export-ignore
 /.phplint.yml   export-ignore
 /phpstan.neon   export-ignore
+/examples       export-ignore

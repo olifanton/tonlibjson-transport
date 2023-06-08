@@ -11,6 +11,8 @@ use Olifanton\Ton\Contracts\Messages\ExternalMessage;
 use Olifanton\Ton\Contracts\Messages\ResponseStack;
 use Olifanton\Ton\Exceptions\TransportException;
 use Olifanton\Ton\Transport;
+use Olifanton\TonlibjsonTransport\Models\LiteServer;
+use Olifanton\TonlibjsonTransport\Pool\Selector;
 use Olifanton\TypedArrays\Uint8Array;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
@@ -19,8 +21,13 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
 {
     use LoggerAwareTrait;
 
+    /**
+     * @param LiteServer[] $liteServers
+     */
     public function __construct(
         private readonly ClientPool $pool,
+        private readonly Selector $selector,
+        private readonly array $liteServers,
     ) {}
 
     /**

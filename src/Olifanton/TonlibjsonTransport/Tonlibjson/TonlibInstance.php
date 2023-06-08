@@ -30,7 +30,10 @@ class TonlibInstance
 
     public function create(): Client
     {
-        return new Client($this->ffi->tonlib_client_json_create());
+        return new Client(
+            $this->ffi->tonlib_client_json_create(),
+            hash("crc32", random_bytes(128))
+        );
     }
 
     public function destroy(Client $client): void

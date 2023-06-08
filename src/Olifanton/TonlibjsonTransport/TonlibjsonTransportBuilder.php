@@ -6,6 +6,7 @@ use Olifanton\TonlibjsonTransport\Exceptions\BuilderException;
 use Olifanton\TonlibjsonTransport\Exceptions\LibraryLocationException;
 use Olifanton\TonlibjsonTransport\Helpers\HttpClientFactory;
 use Olifanton\TonlibjsonTransport\Models\LiteServer;
+use Olifanton\TonlibjsonTransport\Pool\Factories\BlockingPoolFactory;
 use Olifanton\TonlibjsonTransport\Pool\RandomSelector;
 use Olifanton\TonlibjsonTransport\Pool\Selector;
 use Olifanton\TonlibjsonTransport\Tonlibjson\TonlibInstance;
@@ -27,9 +28,11 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
      */
     private ?array $liteServers = null;
 
-    private ?Selector $poolSelector = null;
+    private ?Selector $selector = null;
 
     private ?LiteServerRepository $liteServerRepository = null;
+
+    private ?ClientPoolFactory $clientPoolFactory = null;
 
     public function __construct(bool $isMainnet = true)
     {
@@ -74,9 +77,16 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
         return $this;
     }
 
-    public function setPoolSelector(Selector $poolSelector): self
+    public function setSelector(Selector $selector): self
     {
-        $this->poolSelector = $poolSelector;
+        $this->selector = $selector;
+
+        return $this;
+    }
+
+    public function setClientPoolFactory(ClientPoolFactory $clientPoolFactory): self
+    {
+        $this->clientPoolFactory = $clientPoolFactory;
 
         return $this;
     }
@@ -86,10 +96,11 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
      */
     public function build(): TonlibjsonTransport
     {
+        $tonlib = $this->createTonlib();
         $instance = new TonlibjsonTransport(
-            $this->createPool(
-                $this->createTonlib(),
-            ),
+            $this->pool ?? $this->createPool($tonlib),
+            $this->selector ?? $this->createSelector(),
+            $this->getLiteServers(),
         );
 
         if ($this->logger) {
@@ -99,16 +110,10 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
         return $instance;
     }
 
-    /**
-     * @throws BuilderException
-     */
     protected function createPool(TonlibInstance $tonlib): ClientPool
     {
-        $instance = new ClientPool(
-            $tonlib,
-            $this->getLiteServers(),
-            $this->poolSelector ?? $this->createPoolSelector(),
-        );
+        $factory = $this->clientPoolFactory ?? new BlockingPoolFactory();
+        $instance = $factory->getPool($tonlib);
 
         if ($this->logger) {
             $instance->setLogger($this->logger);
@@ -136,7 +141,7 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
         }
     }
 
-    protected function createPoolSelector(): Selector
+    protected function createSelector(): Selector
     {
         return new RandomSelector();
     }
