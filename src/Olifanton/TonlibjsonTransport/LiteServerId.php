@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Olifanton\TonlibjsonTransport\Models;
+namespace Olifanton\TonlibjsonTransport;
 
 use Olifanton\Ton\Marshalling\Attributes\JsonMap;
 use Olifanton\Ton\Marshalling\Json\Hydrator;

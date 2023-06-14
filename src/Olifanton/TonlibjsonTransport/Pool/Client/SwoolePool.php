@@ -1,21 +1,17 @@
 <?php declare(strict_types=1);
 
-namespace Olifanton\TonlibjsonTransport\Pool;
+namespace Olifanton\TonlibjsonTransport\Pool\Client;
 
 use Olifanton\TonlibjsonTransport\ClientPool;
 use Olifanton\TonlibjsonTransport\Tonlibjson\Client;
 use Olifanton\TonlibjsonTransport\Tonlibjson\TonlibInstance;
 use Psr\Log\LoggerAwareTrait;
+use Swoole\Coroutine\System;
 
 /**
- * Dynamic client pool.
- *
- * To work in a non-blocking Swoole environment, you need to use the Sleep hook:
- * ```
- * co::set(['hook_flags' => OpenSwoole\Runtime::HOOK_SLEEP]);
- * ```
+ * Swoole client pool.
  */
-class DynamicPool implements ClientPool
+class SwoolePool implements ClientPool
 {
     use LoggerAwareTrait;
     use CommonPool;
@@ -23,8 +19,6 @@ class DynamicPool implements ClientPool
     public const BUSY_MODE_WAIT = 0;
 
     public const BUSY_MODE_FAILED = 1;
-
-    private int $waitMilliseconds = 150;
 
     private int $maxWaitMilliseconds = 30000;
 
@@ -52,7 +46,7 @@ class DynamicPool implements ClientPool
 
                     /** @noinspection PhpConditionAlreadyCheckedInspection */
                     do {
-                        usleep($this->waitMilliseconds * 1000);
+                        System::sleep($this->getTickTimeout());
 
                         if (microtime(true) > $waitUntil) {
                             throw new \RuntimeException(
@@ -76,17 +70,15 @@ class DynamicPool implements ClientPool
         return $client;
     }
 
-    public function setWaitMilliseconds(int $waitMilliseconds): self
-    {
-        $this->waitMilliseconds = $waitMilliseconds;
-
-        return $this;
-    }
-
     public function setMaxWaitMilliseconds(int $maxWaitMilliseconds): self
     {
         $this->maxWaitMilliseconds = $maxWaitMilliseconds;
 
         return $this;
+    }
+
+    protected function getTickTimeout(): int
+    {
+        return 1;
     }
 }

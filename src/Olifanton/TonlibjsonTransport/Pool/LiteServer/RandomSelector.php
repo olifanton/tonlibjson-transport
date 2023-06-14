@@ -1,8 +1,8 @@
 <?php declare(strict_types=1);
 
-namespace Olifanton\TonlibjsonTransport\Pool;
+namespace Olifanton\TonlibjsonTransport\Pool\LiteServer;
 
-use Olifanton\TonlibjsonTransport\Models\LiteServer;
+use Olifanton\TonlibjsonTransport\LiteServer;
 
 class RandomSelector implements Selector
 {

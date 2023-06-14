@@ -10,5 +10,5 @@ parameters:
     - message: '#Call to an undefined method FFI::#'
     - message: '#Call to an undefined method FFI::\\TypedArrays\\Uint8Array::\$length#'
     - message: '#Access to protected property Olifanton\\TypedArrays\\Uint8Array::\$buffer#'
-    - message: '#Class Olifanton\\TonlibjsonTransport\\Models\\LiteServer has an uninitialized readonly property#'
-    - message: '#Class Olifanton\\TonlibjsonTransport\\Models\\LiteServerId has an uninitialized readonly property#'
+    - message: '#Class Olifanton\\TonlibjsonTransport\\LiteServer has an uninitialized readonly property#'
+    - message: '#Class Olifanton\\TonlibjsonTransport\\LiteServerId has an uninitialized readonly property#'

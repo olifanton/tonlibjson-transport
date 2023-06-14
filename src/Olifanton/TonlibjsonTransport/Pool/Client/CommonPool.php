@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Olifanton\TonlibjsonTransport\Pool;
+namespace Olifanton\TonlibjsonTransport\Pool\Client;
 
 use Olifanton\TonlibjsonTransport\Tonlibjson\Client;
 use Olifanton\TonlibjsonTransport\Tonlibjson\TonlibInstance;

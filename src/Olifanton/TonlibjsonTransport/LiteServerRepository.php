@@ -3,7 +3,6 @@
 namespace Olifanton\TonlibjsonTransport;
 
 use Olifanton\TonlibjsonTransport\Exceptions\LiteServerFetchingException;
-use Olifanton\TonlibjsonTransport\Models\LiteServer;
 
 interface LiteServerRepository
 {

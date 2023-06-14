@@ -37,6 +37,9 @@
     "phpstan/phpstan": "^1.9",
     "phpunit/phpunit": "^9.5"
   },
+  "suggest": {
+    "ext-openswoole": "*"
+  },
   "autoload": {
     "psr-4": {
       "Olifanton\\TonlibjsonTransport\\": "src/Olifanton/TonlibjsonTransport/"

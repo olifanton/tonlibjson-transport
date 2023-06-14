@@ -3,8 +3,8 @@
 namespace Olifanton\Ton\Tests\Stubs;
 
 use Olifanton\Ton\Marshalling\Exceptions\MarshallingException;
+use Olifanton\TonlibjsonTransport\LiteServer;
 use Olifanton\TonlibjsonTransport\LiteServerRepository;
-use Olifanton\TonlibjsonTransport\Models\LiteServer;
 
 class StubLiteServerRepository implements LiteServerRepository
 {

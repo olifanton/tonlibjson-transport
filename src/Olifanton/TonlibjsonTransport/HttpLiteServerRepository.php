@@ -6,7 +6,6 @@ use Http\Client\Common\HttpMethodsClientInterface;
 use Olifanton\Ton\Marshalling\Exceptions\MarshallingException;
 use Olifanton\Ton\Marshalling\Json\Hydrator;
 use Olifanton\TonlibjsonTransport\Exceptions\LiteServerFetchingException;
-use Olifanton\TonlibjsonTransport\Models\LiteServer;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 

@@ -16,7 +16,7 @@ $logger = new class extends \Psr\Log\AbstractLogger
 };
 
 $tonlib = new TonlibInstance((new \Olifanton\TonlibjsonTransport\GenericLocator(dirname(__DIR__, 2) . "/lib"))->locatePath());
-$pool = new \Olifanton\TonlibjsonTransport\Pool\DynamicPool($tonlib, 5);
+$pool = new \Olifanton\TonlibjsonTransport\Pool\Client\SwoolePool($tonlib, 5);
 $pool->setLogger($logger);
 
 co::run(function() use ($pool, $logger) {
