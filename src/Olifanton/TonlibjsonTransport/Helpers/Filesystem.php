@@ -24,4 +24,16 @@ class Filesystem {
             @unlink($filePath);
         }
     }
+
+    /**
+     * @param resource $stream
+     */
+    public function copyStreamToFile($stream, string $targetFile): int
+    {
+        $writeHandle = fopen($targetFile, "x");
+        $resultLength = stream_copy_to_stream($stream, $writeHandle);
+        fclose($writeHandle);
+
+        return $resultLength;
+    }
 }

@@ -66,9 +66,7 @@ class Downloader implements LoggerAwareInterface
                 $status,
                 $expectedLength,
             ));
-        $writeHandle = fopen($targetFile, "x");
-        $resultLength = stream_copy_to_stream($response->getBody()->detach(), $writeHandle);
-        fclose($writeHandle);
+        $resultLength = $this->fs->copyStreamToFile($response->getBody()->detach(), $targetFile);
 
         if ($resultLength !== $expectedLength) {
             $this->fs->safeUnset($targetFile);
