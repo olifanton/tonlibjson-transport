@@ -4,7 +4,7 @@ namespace Olifanton\TonlibjsonTransport\Pool\LiteServer;
 
 use Olifanton\TonlibjsonTransport\LiteServer;
 
-class RandomSelector implements Selector
+class FirstServerSelector implements Selector
 {
     /**
      * @param LiteServer[] $liteServers
@@ -15,6 +15,6 @@ class RandomSelector implements Selector
             throw new \InvalidArgumentException("Empty liteservers list");
         }
 
-        return $liteServers[array_rand($liteServers)];
+        return $liteServers[array_key_first($liteServers)];
     }
 }

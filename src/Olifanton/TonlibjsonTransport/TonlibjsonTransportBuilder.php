@@ -6,6 +6,7 @@ use Olifanton\TonlibjsonTransport\Exceptions\BuilderException;
 use Olifanton\TonlibjsonTransport\Exceptions\LibraryLocationException;
 use Olifanton\TonlibjsonTransport\Helpers\HttpClientFactory;
 use Olifanton\TonlibjsonTransport\Pool\Client\Factories\BlockingPoolFactory;
+use Olifanton\TonlibjsonTransport\Pool\LiteServer\DefaultPool;
 use Olifanton\TonlibjsonTransport\Pool\LiteServer\RandomSelector;
 use Olifanton\TonlibjsonTransport\Pool\LiteServer\Selector;
 use Olifanton\TonlibjsonTransport\Tonlibjson\TonlibInstance;
@@ -97,9 +98,8 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
     {
         $tonlib = $this->createTonlib();
         $instance = new TonlibjsonTransport(
-            $this->pool ?? $this->createPool($tonlib),
-            $this->selector ?? $this->createSelector(),
-            $this->getLiteServers(),
+            $this->pool ?? $this->createClientPool($tonlib),
+            $this->createLiteServerPool(),
         );
 
         if ($this->logger) {
@@ -109,7 +109,7 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
         return $instance;
     }
 
-    protected function createPool(TonlibInstance $tonlib): ClientPool
+    protected function createClientPool(TonlibInstance $tonlib): ClientPool
     {
         $factory = $this->clientPoolFactory ?? new BlockingPoolFactory();
         $instance = $factory->getPool($tonlib);
@@ -119,6 +119,17 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
         }
 
         return $instance;
+    }
+
+    /**
+     * @throws BuilderException
+     */
+    protected function createLiteServerPool(): LiteServerPool
+    {
+        return new DefaultPool(
+            $this->selector ?? $this->createSelector(),
+            $this->getLiteServers(),
+        );
     }
 
     /**

@@ -4,7 +4,5 @@ namespace Olifanton\TonlibjsonTransport;
 
 interface LiteServerPool
 {
-    public function borrow(): LiteServer;
-
-    public function return(LiteServer $client): void;
+    public function get(): LiteServer;
 }

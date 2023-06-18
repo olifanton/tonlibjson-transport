@@ -7,13 +7,20 @@ use Olifanton\TonlibjsonTransport\LiteServerPool;
 
 class DefaultPool implements LiteServerPool
 {
-    public function borrow(): LiteServer
-    {
-        // FIXME: Implement borrow() method.
-    }
+    /**
+     * @param LiteServer[] $liteServers
+     */
+    public function __construct(
+        protected readonly Selector $selector,
+        protected readonly array $liteServers,
+    ) {}
 
-    public function return(LiteServer $client): void
+    public function get(): LiteServer
     {
-        // FIXME: Implement return() method.
+        if (empty($this->liteServers)) {
+            throw new \InvalidArgumentException("Empty liteservers list");
+        }
+
+        return $this->selector->select($this->liteServers);
     }
 }

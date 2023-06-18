@@ -4,6 +4,7 @@ namespace Olifanton\Ton\Tests;
 
 use Http\Client\Common\HttpMethodsClientInterface;
 use Mockery\MockInterface;
+use Olifanton\Ton\Tests\Stubs\RawLs;
 use Olifanton\TonlibjsonTransport\Exceptions\LiteServerFetchingException;
 use Olifanton\TonlibjsonTransport\HttpLiteServerRepository;
 use PHPUnit\Framework\TestCase;
@@ -38,32 +39,7 @@ class HttpLiteServerRepositoryTest extends TestCase
     public function testGetList(): void
     {
         $stubResponse = [
-            "liteservers" => [
-                [
-                    'ip' => 84478511,
-                    'port' => 19949,
-                    'id' => [
-                        '@type' => 'pub.ed25519',
-                        'key' => 'n4VDnSCUuSpjnCyUk9e3QOOd6o0ItSWYbTnW3Wnn8wk=',
-                    ],
-                ],
-                [
-                    'ip' => 84478479,
-                    'port' => 48014,
-                    'id' => [
-                        '@type' => 'pub.ed25519',
-                        'key' => '3XO67K/qi+gu3T9v8G2hx1yNmWZhccL3O7SoosFo8G0=',
-                    ],
-                ],
-                [
-                    'ip' => -2018135749,
-                    'port' => 53312,
-                    'id' => [
-                        '@type' => 'pub.ed25519',
-                        'key' => 'aF91CuUHuuOv9rm2W5+O/4h38M3sRm40DtSdRxQhmtQ=',
-                    ],
-                ],
-            ],
+            "liteservers" => RawLs::get(),
         ];
 
         // @phpstan-ignore-next-line
