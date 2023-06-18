@@ -2,10 +2,7 @@
 
 namespace Olifanton\TonlibjsonTransport;
 
-use Http\Client\Common\HttpMethodsClient;
 use Http\Client\Common\HttpMethodsClientInterface;
-use Http\Discovery\HttpClientDiscovery;
-use Http\Discovery\Psr17FactoryDiscovery;
 use Olifanton\TonlibjsonTransport\Exceptions\LibraryLocationException;
 use Olifanton\TonlibjsonTransport\Helpers\Filesystem;
 use Olifanton\TonlibjsonTransport\Helpers\HttpClientFactory;
@@ -16,7 +13,7 @@ class Downloader implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
 
-    private string $baseUrl = "https://github.com/ton-blockchain/ton/releases/download/v2023.04/";
+    private string $baseUrl = "https://github.com/ton-blockchain/ton/releases/download/v2023.06/";
 
     public function __construct(
         private readonly HttpMethodsClientInterface $httpClient,
