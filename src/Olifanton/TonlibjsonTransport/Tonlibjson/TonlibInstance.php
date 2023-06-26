@@ -47,7 +47,7 @@ class TonlibInstance
             ->ffi
             ->tonlib_client_json_send(
                 $client->ptr,
-                Type::string($request),
+                Type::charArray(str_split($request)),
             );
     }
 
@@ -58,11 +58,11 @@ class TonlibInstance
             ->ffi
             ->tonlib_client_json_execute(
                 $client->ptr,
-                Type::string($request),
+                $request,
             );
 
-        if ($data) {
-            return Type::toString($data);
+        if ($data && is_string($data)) {
+            return $data;
         }
 
         return null;
@@ -76,11 +76,11 @@ class TonlibInstance
             /**  */
             ->tonlib_client_json_receive(
                 $client->ptr,
-                Type::double($timeout),
+                $timeout,
             );
 
-        if ($data) {
-            return Type::toString($data);
+        if ($data && is_string($data)) {
+            return $data;
         }
 
         return null;

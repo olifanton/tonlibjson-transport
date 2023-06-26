@@ -10,6 +10,7 @@ use Olifanton\TonlibjsonTransport\Pool\Client\Factories\BlockingPoolFactory;
 use Olifanton\TonlibjsonTransport\Pool\LiteServer\RandomSelector;
 use Olifanton\TonlibjsonTransport\Tonlibjson\TonlibInstance;
 use Olifanton\TonlibjsonTransport\TonlibjsonTransportBuilder;
+use Olifanton\TonlibjsonTransport\VerbosityLevel;
 use PHPUnit\Framework\TestCase;
 
 class TonlibjsonTransportBuilderTest extends TestCase
@@ -33,7 +34,11 @@ class TonlibjsonTransportBuilderTest extends TestCase
         $instance = (new class extends TonlibjsonTransportBuilder {
             protected function createTonlib(): TonlibInstance
             {
-                return \Mockery::mock(TonlibInstance::class); // @phpstan-ignore-line
+                $mock = \Mockery::mock(TonlibInstance::class); // @phpstan-ignore-line
+                $mock // @phpstan-ignore-line
+                    ->shouldReceive("setVerbosityLevel");
+
+                return $mock;
             }
         })
             ->setLiteServerRepository(new StubLiteServerRepository())

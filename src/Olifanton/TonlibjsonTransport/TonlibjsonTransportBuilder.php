@@ -10,14 +10,13 @@ use Olifanton\TonlibjsonTransport\Pool\LiteServer\DefaultPool;
 use Olifanton\TonlibjsonTransport\Pool\LiteServer\RandomSelector;
 use Olifanton\TonlibjsonTransport\Pool\LiteServer\Selector;
 use Olifanton\TonlibjsonTransport\Tonlibjson\TonlibInstance;
-use Psr\Log\LoggerAwareInterface;
-use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
 
-class TonlibjsonTransportBuilder implements LoggerAwareInterface
+class TonlibjsonTransportBuilder
 {
-    use LoggerAwareTrait;
-
     private string $configUrl;
+
+    private ?LoggerInterface $logger = null;
 
     private ?Locator $locator = null;
 
@@ -34,9 +33,25 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
 
     private ?ClientPoolFactory $clientPoolFactory = null;
 
+    private VerbosityLevel $verbosityLevel = VerbosityLevel::ERROR;
+
     public function __construct(bool $isMainnet = true)
     {
         $this->configUrl = $isMainnet ? ConfigUrl::MAINNET->value : ConfigUrl::TESTNET->value;
+    }
+
+    public function setVerbosityLevel(VerbosityLevel $verbosityLevel): self
+    {
+        $this->verbosityLevel = $verbosityLevel;
+
+        return $this;
+    }
+
+    public function setLogger(LoggerInterface $logger): self
+    {
+        $this->logger = $logger;
+
+        return $this;
     }
 
     public function setConfigUrl(ConfigUrl|string $configUrl): self
@@ -97,9 +112,9 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
     public function build(): TonlibjsonTransport
     {
         $tonlib = $this->createTonlib();
+        $tonlib->setVerbosityLevel($this->verbosityLevel);
         $instance = new TonlibjsonTransport(
-            $this->pool ?? $this->createClientPool($tonlib),
-            $this->createLiteServerPool(),
+            $tonlib,
         );
 
         if ($this->logger) {
@@ -109,6 +124,9 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
         return $instance;
     }
 
+    /**
+     * @deprecated
+     */
     protected function createClientPool(TonlibInstance $tonlib): ClientPool
     {
         $factory = $this->clientPoolFactory ?? new BlockingPoolFactory();
@@ -122,7 +140,7 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
     }
 
     /**
-     * @throws BuilderException
+     * @deprecated
      */
     protected function createLiteServerPool(): LiteServerPool
     {
@@ -177,6 +195,7 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
     /**
      * @return LiteServer[]
      * @throws BuilderException
+     * @deprecated
      */
     protected function getLiteServers(): array
     {
@@ -191,6 +210,9 @@ class TonlibjsonTransportBuilder implements LoggerAwareInterface
         return $this->liteServers;
     }
 
+    /**
+     * @deprecated
+     */
     protected function getLiteServerRepository(): LiteServerRepository
     {
         if (!$this->liteServerRepository) {
