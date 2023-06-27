@@ -2,13 +2,10 @@
 
 namespace Olifanton\TonlibjsonTransport;
 
+use Olifanton\TonlibjsonTransport\Async\Executor;
 use Olifanton\TonlibjsonTransport\Exceptions\BuilderException;
 use Olifanton\TonlibjsonTransport\Exceptions\LibraryLocationException;
 use Olifanton\TonlibjsonTransport\Helpers\HttpClientFactory;
-use Olifanton\TonlibjsonTransport\Pool\Client\Factories\BlockingPoolFactory;
-use Olifanton\TonlibjsonTransport\Pool\LiteServer\DefaultPool;
-use Olifanton\TonlibjsonTransport\Pool\LiteServer\RandomSelector;
-use Olifanton\TonlibjsonTransport\Pool\LiteServer\Selector;
 use Olifanton\TonlibjsonTransport\Tonlibjson\TonlibInstance;
 use Psr\Log\LoggerInterface;
 
@@ -27,15 +24,12 @@ class TonlibjsonTransportBuilder
      */
     private ?array $liteServers = null;
 
-    private ?Selector $selector = null;
-
-    private ?LiteServerRepository $liteServerRepository = null;
-
-    private ?ClientPoolFactory $clientPoolFactory = null;
-
     private VerbosityLevel $verbosityLevel = VerbosityLevel::ERROR;
 
-    public function __construct(bool $isMainnet = true)
+    public function __construct(
+        private readonly Executor $executor,
+        bool $isMainnet = true,
+    )
     {
         $this->configUrl = $isMainnet ? ConfigUrl::MAINNET->value : ConfigUrl::TESTNET->value;
     }
@@ -57,13 +51,6 @@ class TonlibjsonTransportBuilder
     public function setConfigUrl(ConfigUrl|string $configUrl): self
     {
         $this->configUrl = $configUrl instanceof ConfigUrl ? $configUrl->value : $configUrl;
-
-        return $this;
-    }
-
-    public function setLiteServerRepository(LiteServerRepository $liteServerRepository): self
-    {
-        $this->liteServerRepository = $liteServerRepository;
 
         return $this;
     }
@@ -92,20 +79,6 @@ class TonlibjsonTransportBuilder
         return $this;
     }
 
-    public function setSelector(Selector $selector): self
-    {
-        $this->selector = $selector;
-
-        return $this;
-    }
-
-    public function setClientPoolFactory(ClientPoolFactory $clientPoolFactory): self
-    {
-        $this->clientPoolFactory = $clientPoolFactory;
-
-        return $this;
-    }
-
     /**
      * @throws BuilderException
      */
@@ -115,6 +88,8 @@ class TonlibjsonTransportBuilder
         $tonlib->setVerbosityLevel($this->verbosityLevel);
         $instance = new TonlibjsonTransport(
             $tonlib,
+            $this->executor,
+            // FIXME
         );
 
         if ($this->logger) {
@@ -122,32 +97,6 @@ class TonlibjsonTransportBuilder
         }
 
         return $instance;
-    }
-
-    /**
-     * @deprecated
-     */
-    protected function createClientPool(TonlibInstance $tonlib): ClientPool
-    {
-        $factory = $this->clientPoolFactory ?? new BlockingPoolFactory();
-        $instance = $factory->getPool($tonlib);
-
-        if ($this->logger) {
-            $instance->setLogger($this->logger);
-        }
-
-        return $instance;
-    }
-
-    /**
-     * @deprecated
-     */
-    protected function createLiteServerPool(): LiteServerPool
-    {
-        return new DefaultPool(
-            $this->selector ?? $this->createSelector(),
-            $this->getLiteServers(),
-        );
     }
 
     /**
@@ -169,11 +118,6 @@ class TonlibjsonTransportBuilder
         }
     }
 
-    protected function createSelector(): Selector
-    {
-        return new RandomSelector();
-    }
-
     /**
      * @throws BuilderException
      */
@@ -192,23 +136,6 @@ class TonlibjsonTransportBuilder
         return $this->locator;
     }
 
-    /**
-     * @return LiteServer[]
-     * @throws BuilderException
-     * @deprecated
-     */
-    protected function getLiteServers(): array
-    {
-        if (!$this->liteServers) {
-            try {
-                return $this->getLiteServerRepository()->getList();
-            } catch (Exceptions\LiteServerFetchingException $e) {
-                throw new BuilderException($e->getMessage(), $e->getCode(), $e);
-            }
-        }
-
-        return $this->liteServers;
-    }
 
     /**
      * @deprecated

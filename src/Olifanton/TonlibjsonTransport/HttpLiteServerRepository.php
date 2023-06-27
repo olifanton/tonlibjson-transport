@@ -9,6 +9,9 @@ use Olifanton\TonlibjsonTransport\Exceptions\LiteServerFetchingException;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 
+/**
+ * @deprecated
+ */
 class HttpLiteServerRepository implements LiteServerRepository, LoggerAwareInterface
 {
     use LoggerAwareTrait;

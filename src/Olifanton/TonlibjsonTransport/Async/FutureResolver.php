@@ -2,7 +2,7 @@
 
 namespace Olifanton\TonlibjsonTransport\Async;
 
-interface Future
+interface FutureResolver
 {
-    public function await(): mixed;
+    public function resolve(mixed $value): void;
 }
