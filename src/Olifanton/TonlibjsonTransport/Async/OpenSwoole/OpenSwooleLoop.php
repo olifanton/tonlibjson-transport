@@ -46,7 +46,8 @@ class OpenSwooleLoop implements Loop
                         ($this->onTick)();
                     }
 
-                    System::sleep(1);
+                    /** @noinspection PhpUndefinedMethodInspection */
+                    System::usleep(5000); // @phpstan-ignore-line
                 }
             });
         }

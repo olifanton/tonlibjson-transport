@@ -17,7 +17,7 @@ class TonlibjsonTransportBuilderTest extends TestCase
      */
     public function testCreateWithDefaults(): void
     {
-        $instance = new TonlibjsonTransportBuilder(true);
+        $instance = new TonlibjsonTransportBuilder();
         $instance->setLibDirectory(BIN_LIB_PATH);
         $transport = $instance->build();
         $this->assertInstanceOf(Transport::class, $transport);

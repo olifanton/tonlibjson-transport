@@ -24,7 +24,11 @@ class TonlibjsonTransportBuilder
      */
     private ?array $liteServers = null;
 
+    private ?string $config = null;
+
     private VerbosityLevel $verbosityLevel = VerbosityLevel::ERROR;
+
+    private ?string $keyStoreTypeDirectory = null;
 
     public function __construct(
         private readonly Executor $executor,
@@ -60,6 +64,12 @@ class TonlibjsonTransportBuilder
      */
     public function setLiteServers(array $liteServers): self
     {
+        foreach ($liteServers as $ls) {
+            if (!$ls instanceof LiteServer) {
+                throw new \InvalidArgumentException();
+            }
+        }
+
         $this->liteServers = $liteServers;
 
         return $this;
@@ -79,24 +89,49 @@ class TonlibjsonTransportBuilder
         return $this;
     }
 
+    public function setKeyStoreTypeDirectory(string $keyStoreTypeDirectory): self
+    {
+        $this->keyStoreTypeDirectory = $keyStoreTypeDirectory;
+
+        return $this;
+    }
+
+    public function setConfig(string $config): self
+    {
+        $this->config = $config;
+
+        return $this;
+    }
+
     /**
      * @throws BuilderException
      */
     public function build(): TonlibjsonTransport
     {
-        $tonlib = $this->createTonlib();
-        $tonlib->setVerbosityLevel($this->verbosityLevel);
-        $instance = new TonlibjsonTransport(
-            $tonlib,
-            $this->executor,
-            // FIXME
-        );
+        try {
+            $tonlib = $this->createTonlib();
+            $tonlib->setVerbosityLevel($this->verbosityLevel);
+            $config = $this->getConfig();
 
-        if ($this->logger) {
-            $instance->setLogger($this->logger);
+            if (!empty($this->liteServers)) {
+                $config = $this->replaceLiteServers($config, $this->liteServers);
+            }
+
+            $instance = new TonlibjsonTransport(
+                $tonlib,
+                $this->executor,
+                $config,
+                $this->keyStoreTypeDirectory ?? sys_get_temp_dir(),
+            );
+
+            if ($this->logger) {
+                $instance->setLogger($this->logger);
+            }
+
+            return $instance;
+        } catch (\Throwable $e) {
+            throw new BuilderException($e->getMessage(), $e->getCode(), $e);
         }
-
-        return $instance;
     }
 
     /**
@@ -136,25 +171,32 @@ class TonlibjsonTransportBuilder
         return $this->locator;
     }
 
-
-    /**
-     * @deprecated
-     */
-    protected function getLiteServerRepository(): LiteServerRepository
+    protected function getConfig(): string
     {
-        if (!$this->liteServerRepository) {
-            $liteServerRepository = new HttpLiteServerRepository(
-                HttpClientFactory::discovered(),
-                $this->configUrl,
-            );
-
-            if ($this->logger) {
-                $liteServerRepository->setLogger($this->logger);
-            }
-
-            return $liteServerRepository;
+        if ($this->config) {
+            return $this->config;
         }
 
-        return $this->liteServerRepository;
+        return $this->downloadConfig($this->configUrl);
+    }
+
+    protected function downloadConfig(string $configUrl): string
+    {
+        $httpClient = HttpClientFactory::discovered();
+        $response = $httpClient->get($configUrl);
+
+        return $response->getBody()->getContents();
+    }
+
+    /**
+     * @param LiteServer[] $liteServers
+     * @throws \JsonException
+     */
+    protected final function replaceLiteServers(string $config, array $liteServers): string
+    {
+        $parsedConfig = json_decode($config, true, flags: JSON_THROW_ON_ERROR);
+        $parsedConfig["liteservers"] = array_map(static fn (LiteServer $ls): array => $ls->toArray(), $liteServers);
+
+        return json_encode($parsedConfig, JSON_THROW_ON_ERROR);
     }
 }

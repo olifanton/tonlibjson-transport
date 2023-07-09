@@ -4,5 +4,8 @@ namespace Olifanton\TonlibjsonTransport\Async;
 
 interface Future
 {
+    /**
+     * @throws \Throwable
+     */
     public function await(): mixed;
 }

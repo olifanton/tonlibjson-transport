@@ -11,7 +11,7 @@ use OpenSwoole\Coroutine\Channel;
 class OpenSwooleFuture implements Future
 {
     /**
-     * @var callable<Channel>
+     * @var callable(Channel)
      */
     private $onTick;
 

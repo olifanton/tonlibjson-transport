@@ -16,6 +16,7 @@ use Olifanton\TonlibjsonTransport\Async\Executor;
 use Olifanton\TonlibjsonTransport\Async\Future;
 use Olifanton\TonlibjsonTransport\Async\FutureResolver;
 use Olifanton\TonlibjsonTransport\Async\Loop;
+use Olifanton\TonlibjsonTransport\Exceptions\LiteServerError;
 use Olifanton\TonlibjsonTransport\Exceptions\TonlibjsonTransportException;
 use Olifanton\TonlibjsonTransport\TL\TLObject;
 use Olifanton\TonlibjsonTransport\Tonlibjson\Client;
@@ -109,6 +110,7 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
 
     /**
      * @throws TonlibjsonTransportException
+     * @throws LiteServerError
      */
     public function execute(TLObject $object): ?array
     {
@@ -163,12 +165,13 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
                     "directory" => $this->keyStoreTypeDirectory,
                 ],
             ],
-        ], $extraId);
+        ], $extraId, false);
         $this->loop->onTick(function () {
             if (!$this->isTerminating) {
                 $excludedTypes = [
                     "updateSyncState"
                 ];
+
                 $result = $this
                     ->tonlib
                     ->receive(
@@ -194,23 +197,25 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
                 $this->isInitialized = false;
             }
         });
-        $this->loop->run();
-        $this->isInitialized = true;
 
         try {
-            $this->executor->createFuture(
+            $future = $this->executor->createFuture(
                 function (FutureResolver $resolver) use ($extraId) {
                     if ($this->popResponse($extraId)) {
                         $resolver->resolve(true);
                     }
                 },
-            )->await();
+            );
+            $this->loop->run();
+            $this->isInitialized = true;
+
+            $future->await();
             $this
                 ->logger
                 ?->debug("[TonlibjsonTransport] Tonlibjson initialized");
-        } catch (Async\Exceptions\FutureException $e) {
+        } catch (\Throwable $e) {
             throw new TonlibjsonTransportException(
-                "Future construction error: " . $e->getMessage(),
+                "Future error: " . $e->getMessage(),
                 $e->getCode(),
                 $e,
             );
@@ -220,7 +225,7 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
     /**
      * @throws TonlibjsonTransportException
      */
-    private function executeInternal(array $request, ?string $extraId = null): Future
+    private function executeInternal(array $request, ?string $extraId = null, bool $future = true): ?Future
     {
         try {
             $extraId = $extraId ?? $this->createExtraId();
@@ -236,16 +241,16 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
                 ->tonlib
                 ->send(
                     $this->client,
-                    json_encode($request, JSON_THROW_ON_ERROR),
+                    json_encode($request, JSON_THROW_ON_ERROR) . "\0",
                 );
 
-            return $this->executor->createFuture(
+            return $future ? $this->executor->createFuture(
                 function (FutureResolver $resolver) use ($extraId) {
                     if ($response = $this->popResponse($extraId)) {
-                        $resolver->resolve($response);
+                        $resolver->resolve($this->tryExtractError($response) ?? $response);
                     }
                 }
-            );
+            ) : null;
         } catch (\JsonException $e) {
             $errorMessage = sprintf(
                 "Request serialization error: %s",
@@ -333,6 +338,20 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
             unset($this->results[$extraId]);
 
             return $response;
+        }
+
+        return null;
+    }
+
+    private function tryExtractError(array $response): ?LiteServerError
+    {
+        // {"@type":"error","code":500,"message":"LITE_SERVER_NETWORKadnl query timeout","@extra":"1688889065:0:594173408"}
+        if (isset($response["@type"]) && $response["@type"] === "error") {
+            return new LiteServerError(
+                $response["message"] ?? "Unknown lite server error",
+                    $response["code"] ?? 0,
+                $response,
+            );
         }
 
         return null;
