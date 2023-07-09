@@ -22,23 +22,28 @@
   "require": {
     "php": ">=8.1",
     "ext-ffi": "*",
-    "ext-openswoole": "*",
     "ffi/env": "^1.0",
     "ffi/scalar-utils": "^1.0",
     "nyholm/psr7": "^1.8",
     "olifanton/ton": "^0.1.1",
     "symfony/console": "^6.0"
   },
+  "suggest": {
+    "ext-openswoole": "*",
+    "react/async": "^4.0"
+  },
   "require-dev": {
+    "ext-openswoole": "*",
+    "guzzlehttp/guzzle": "^7.5",
+    "http-interop/http-factory-guzzle": "^1.2",
     "jetbrains/phpstorm-attributes": "^1.0",
     "mockery/mockery": "^1.5",
     "openswoole/ide-helper": "^22.0",
     "overtrue/phplint": "^9.0",
+    "php-http/guzzle7-adapter": "^1.0",
     "phpstan/phpstan": "^1.9",
     "phpunit/phpunit": "^9.5",
-    "guzzlehttp/guzzle": "^7.5",
-    "http-interop/http-factory-guzzle": "^1.2",
-    "php-http/guzzle7-adapter": "^1.0"
+    "react/async": "^4.1"
   },
   "autoload": {
     "psr-4": {

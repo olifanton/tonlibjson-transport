@@ -4,6 +4,9 @@ namespace Olifanton\TonlibjsonTransport\Async;
 
 use Olifanton\TonlibjsonTransport\Async\Exceptions\FutureException;
 
+/**
+ * Asynchronous executor
+ */
 interface Executor
 {
     /**
@@ -12,6 +15,7 @@ interface Executor
     public function ensureLoop(): Loop;
 
     /**
+     * @param callable(FutureResolver, Loop): mixed $onTick
      * @throws FutureException
      */
     public function createFuture(callable $onTick, int $timeout = 60): Future;

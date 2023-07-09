@@ -22,9 +22,6 @@ class OpenSwooleLoop implements Loop
 
     private ?int $cid = null;
 
-    /**
-     * @return void
-     */
     public function run(): void
     {
         if (!$this->isRunning) {
@@ -36,7 +33,7 @@ class OpenSwooleLoop implements Loop
                         $state = $future->getState();
 
                         if ($state === FutureState::WAIT_TICK) {
-                            $future->tick();
+                            $future->tick($this);
                         } elseif ($state === FutureState::FULFILLED) {
                             $this->removeFuture($future);
                         }
@@ -46,8 +43,7 @@ class OpenSwooleLoop implements Loop
                         ($this->onTick)();
                     }
 
-                    /** @noinspection PhpUndefinedMethodInspection */
-                    System::usleep(5000); // @phpstan-ignore-line
+                    $this->sleep(500);
                 }
             });
         }
@@ -65,6 +61,12 @@ class OpenSwooleLoop implements Loop
             $this->futures = [];
             \OpenSwoole\Coroutine::cancel($this->cid);
         }
+    }
+
+    public function sleep(int $milliseconds): void
+    {
+        /** @noinspection PhpUndefinedMethodInspection */
+        System::usleep($milliseconds * 1000); // @phpstan-ignore-line
     }
 
     public function addFuture(OpenSwooleFuture $future): void

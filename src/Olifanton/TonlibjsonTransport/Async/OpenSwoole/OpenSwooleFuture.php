@@ -6,12 +6,13 @@ use Olifanton\TonlibjsonTransport\Async\Exceptions\FutureException;
 use Olifanton\TonlibjsonTransport\Async\Exceptions\FutureTimeoutException;
 use Olifanton\TonlibjsonTransport\Async\Future;
 use Olifanton\TonlibjsonTransport\Async\FutureState;
+use Olifanton\TonlibjsonTransport\Async\Loop;
 use OpenSwoole\Coroutine\Channel;
 
 class OpenSwooleFuture implements Future
 {
     /**
-     * @var callable(Channel)
+     * @var callable(Channel, Loop)
      */
     private $onTick;
 
@@ -80,17 +81,17 @@ class OpenSwooleFuture implements Future
         return $this->result;
     }
 
-    public function tick(): void
+    public function tick(Loop $loop): void
     {
         if (!$this->pollStartedAt) {
             $this->pollStartedAt = time();
         }
 
         if ($this->state === FutureState::WAIT_TICK) {
-            go(function () {
+            go(function () use ($loop) {
                 try {
                     $this->state = FutureState::IN_POLL;
-                    ($this->onTick)($this->resolver);
+                    ($this->onTick)($this->resolver, $loop);
                     $this->state = FutureState::WAIT_TICK;
 
                     if ($this->pollStartedAt + $this->maxWaitingTime <= time()) {

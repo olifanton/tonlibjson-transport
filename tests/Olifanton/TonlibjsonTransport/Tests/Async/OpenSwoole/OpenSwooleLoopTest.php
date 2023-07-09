@@ -3,10 +3,10 @@
 namespace Olifanton\Ton\Tests\Async\OpenSwoole;
 
 use Olifanton\TonlibjsonTransport\Async\FutureResolver;
+use Olifanton\TonlibjsonTransport\Async\Loop;
 use Olifanton\TonlibjsonTransport\Async\OpenSwoole\OpenSwooleFuture;
 use Olifanton\TonlibjsonTransport\Async\OpenSwoole\OpenSwooleLoop;
 use PHPUnit\Framework\TestCase;
-use Swoole\Coroutine\System;
 
 class OpenSwooleLoopTest extends TestCase
 {
@@ -34,13 +34,13 @@ class OpenSwooleLoopTest extends TestCase
             $loop->run();
 
             $log = [];
-            $f0 = OpenSwooleFuture::create($loop, function (FutureResolver $resolver) use (&$log) {
-                System::sleep(3);
+            $f0 = OpenSwooleFuture::create($loop, function (FutureResolver $resolver, Loop $loop) use (&$log) {
+                $loop->sleep(3000);
                 $log[] = "f0";
                 $resolver->resolve("foo");
             });
-            $f1 = OpenSwooleFuture::create($loop, function (FutureResolver $resolver) use (&$log) {
-                System::sleep(2);
+            $f1 = OpenSwooleFuture::create($loop, function (FutureResolver $resolver, Loop $loop) use (&$log) {
+                $loop->sleep(2000);
                 $log[] = "f1";
                 $resolver->resolve("bar");
             });

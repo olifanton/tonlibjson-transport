@@ -21,4 +21,9 @@ interface Loop
      * Sets a closure to be called on every tick of the loop.
      */
     public function onTick(callable $onTick): void;
+
+    /**
+     * Non-blocking sleep.
+     */
+    public function sleep(int $milliseconds): void;
 }
