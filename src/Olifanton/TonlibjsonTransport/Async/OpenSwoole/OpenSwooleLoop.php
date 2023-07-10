@@ -2,26 +2,19 @@
 
 namespace Olifanton\TonlibjsonTransport\Async\OpenSwoole;
 
-use Olifanton\TonlibjsonTransport\Async\FutureState;
 use Olifanton\TonlibjsonTransport\Async\Loop;
+use Olifanton\TonlibjsonTransport\Async\Traits\GenericLoop;
 use Swoole\Coroutine\System;
 
 class OpenSwooleLoop implements Loop
 {
-    private bool $isRunning = false;
-
-    /**
-     * @var OpenSwooleFuture[]
-     */
-    private array $futures = [];
-
-    /**
-     * @var ?callable
-     */
-    private $onTick = null;
+    use GenericLoop;
 
     private ?int $cid = null;
 
+    /**
+     * @throws \Throwable
+     */
     public function run(): void
     {
         if (!$this->isRunning) {
@@ -29,20 +22,7 @@ class OpenSwooleLoop implements Loop
 
             $this->cid = go(function() {
                 while ($this->isRunning) {
-                    foreach ($this->futures as $future) {
-                        $state = $future->getState();
-
-                        if ($state === FutureState::WAIT_TICK) {
-                            $future->tick($this);
-                        } elseif ($state === FutureState::FULFILLED) {
-                            $this->removeFuture($future);
-                        }
-                    }
-
-                    if ($this->onTick) {
-                        ($this->onTick)();
-                    }
-
+                    $this->tickRoutine();
                     $this->sleep(500);
                 }
             });
@@ -52,39 +32,15 @@ class OpenSwooleLoop implements Loop
     public function stop(): void
     {
         if ($this->isRunning) {
-            $this->isRunning = false;
-
-            foreach ($this->futures as $future) {
-                $future->cancel();
-            }
-
-            $this->futures = [];
             \OpenSwoole\Coroutine::cancel($this->cid);
         }
+
+        $this->stopInternal();
     }
 
     public function sleep(int $milliseconds): void
     {
         /** @noinspection PhpUndefinedMethodInspection */
         System::usleep($milliseconds * 1000); // @phpstan-ignore-line
-    }
-
-    public function addFuture(OpenSwooleFuture $future): void
-    {
-        $this->futures[$future->getId()] = $future;
-    }
-
-    public function removeFuture(OpenSwooleFuture $future): void
-    {
-        $id = $future->getId();
-
-        if (isset($this->futures[$id])) {
-            unset($this->futures[$id]);
-        }
-    }
-
-    public function onTick(callable $onTick): void
-    {
-        $this->onTick = $onTick;
     }
 }

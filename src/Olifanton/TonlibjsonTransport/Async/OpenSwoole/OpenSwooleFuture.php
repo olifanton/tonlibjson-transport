@@ -3,34 +3,22 @@
 namespace Olifanton\TonlibjsonTransport\Async\OpenSwoole;
 
 use Olifanton\TonlibjsonTransport\Async\Exceptions\FutureException;
-use Olifanton\TonlibjsonTransport\Async\Exceptions\FutureTimeoutException;
 use Olifanton\TonlibjsonTransport\Async\Future;
 use Olifanton\TonlibjsonTransport\Async\FutureState;
 use Olifanton\TonlibjsonTransport\Async\Loop;
+use Olifanton\TonlibjsonTransport\Async\Tickable;
+use Olifanton\TonlibjsonTransport\Async\Traits\GenericFuture;
 use OpenSwoole\Coroutine\Channel;
 
-class OpenSwooleFuture implements Future
+class OpenSwooleFuture implements Future, Tickable
 {
-    /**
-     * @var callable(Channel, Loop)
-     */
-    private $onTick;
+    use GenericFuture;
 
     private Channel $channel;
 
     private Resolver $resolver;
 
     private OpenSwooleLoop $loop;
-
-    private int $maxWaitingTime;
-
-    private string $id;
-
-    private FutureState $state = FutureState::WAIT_TICK;
-
-    private mixed $result = null;
-
-    private ?int $pollStartedAt = null;
 
     /**
      * @throws FutureException
@@ -44,7 +32,7 @@ class OpenSwooleFuture implements Future
             $instance->maxWaitingTime = $maxWaitingTime;
             $instance->channel = new Channel(1);
             $instance->resolver = new Resolver($instance->channel);
-            $instance->id = hash("md5", random_bytes(128));
+            $instance->id = self::createId();
             $loop->addFuture($instance);
 
             return $instance;
@@ -58,34 +46,22 @@ class OpenSwooleFuture implements Future
      */
     public function await(): mixed
     {
-        if ($this->state === FutureState::FULFILLED) {
-            return $this->result;
+        [$isRet, $ret] = $this->checkStateRet();
+
+        if ($isRet) {
+            return $ret;
         }
 
-        if ($this->state === FutureState::REJECTED) {
-            return null;
-        }
-
-        $this->pollStartedAt = time();
         $result = $this->channel->pop();
         $this->channel->close();
         $this->loop->removeFuture($this);
 
-        if ($result instanceof \Throwable) {
-            throw $result;
-        }
-
-        $this->result = $result;
-        $this->state = FutureState::FULFILLED;
-
-        return $this->result;
+        return $this->postAwait($result);
     }
 
     public function tick(Loop $loop): void
     {
-        if (!$this->pollStartedAt) {
-            $this->pollStartedAt = time();
-        }
+        $this->startPoll();
 
         if ($this->state === FutureState::WAIT_TICK) {
             go(function () use ($loop) {
@@ -93,13 +69,7 @@ class OpenSwooleFuture implements Future
                     $this->state = FutureState::IN_POLL;
                     ($this->onTick)($this->resolver, $loop);
                     $this->state = FutureState::WAIT_TICK;
-
-                    if ($this->pollStartedAt + $this->maxWaitingTime <= time()) {
-                        throw new FutureTimeoutException(sprintf(
-                            "Future max waiting time reached: %d seconds",
-                            $this->maxWaitingTime,
-                        ));
-                    }
+                    $this->checkWaitingTime();
                 } catch (\Throwable $e) {
                     $this->state = FutureState::REJECTED;
                     $this->loop->removeFuture($this);

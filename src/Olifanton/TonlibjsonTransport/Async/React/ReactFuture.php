@@ -2,29 +2,23 @@
 
 namespace Olifanton\TonlibjsonTransport\Async\React;
 
-use Fiber;
 use Olifanton\TonlibjsonTransport\Async\Exceptions\FutureException;
-use Olifanton\TonlibjsonTransport\Async\Exceptions\FutureTimeoutException;
 use Olifanton\TonlibjsonTransport\Async\Future;
 use Olifanton\TonlibjsonTransport\Async\FutureState;
+use Olifanton\TonlibjsonTransport\Async\Loop;
+use Olifanton\TonlibjsonTransport\Async\Tickable;
+use Olifanton\TonlibjsonTransport\Async\Traits\GenericFuture;
+use React\Promise\Promise;
 
-class ReactFuture implements Future
+class ReactFuture implements Future, Tickable
 {
-    private ReactLoop $loop;
+    use GenericFuture;
 
-    private int $maxWaitingTime;
+    private ReactLoop $loop;
 
     private Resolver $resolver;
 
-    private string $id;
-
-    private FutureState $state = FutureState::WAIT_TICK;
-
-    private Fiber $fiber;
-
-    private int $pollStartedAt;
-
-    private mixed $result;
+    private Promise $promise;
 
     /**
      * @throws FutureException
@@ -34,33 +28,12 @@ class ReactFuture implements Future
         try {
             $instance = new self();
             $instance->loop = $loop;
-            $instance->fiber = new Fiber(function () use ($onTick) {
-                if (!$this->pollStartedAt) {
-                    $this->pollStartedAt = time();
-                }
-
-                if ($this->state === FutureState::WAIT_TICK) {
-                    try {
-                        $this->state = FutureState::IN_POLL;
-                        ($onTick)($this->resolver, $this->loop);
-                        $this->state = FutureState::WAIT_TICK;
-
-                        if ($this->pollStartedAt + $this->maxWaitingTime <= time()) {
-                            throw new FutureTimeoutException(sprintf(
-                                "Future max waiting time reached: %d seconds",
-                                $this->maxWaitingTime,
-                            ));
-                        }
-                    } catch (\Throwable $e) {
-                        $this->state = FutureState::REJECTED;
-                        $this->loop->removeFuture($this);
-                        $this->resolver->resolve($e);
-                    }
-                }
-            });
+            $instance->onTick = $onTick;
             $instance->maxWaitingTime = $maxWaitingTime;
-            $instance->resolver = new Resolver($loop);
-            $instance->id = hash("md5", random_bytes(128));
+            $instance->promise = new Promise(function ($resolve) use ($instance) {
+                $instance->resolver = new Resolver($resolve);
+            });
+            $instance->id = self::createId();
             $loop->addFuture($instance);
 
             return $instance;
@@ -71,41 +44,36 @@ class ReactFuture implements Future
 
     public function await(): mixed
     {
-        if ($this->state === FutureState::FULFILLED) {
-            return $this->result;
+        [$isRet, $ret] = $this->checkStateRet();
+
+        if ($isRet) {
+            return $ret;
         }
 
-        if ($this->state === FutureState::REJECTED) {
-            return null;
-        }
-
-        $this->pollStartedAt = time();
-        $result = $this->resolver->await();
+        $result = \React\Async\await($this->promise);
         $this->loop->removeFuture($this);
 
-        if ($result instanceof \Throwable) {
-            throw $result;
+        return $this->postAwait($result);
+    }
+
+    public function tick(Loop $loop): void
+    {
+        $this->startPoll();
+
+        if ($this->state === FutureState::WAIT_TICK) {
+            \React\Async\async(function () use ($loop) {
+                try {
+                    $this->state = FutureState::IN_POLL;
+                    ($this->onTick)($this->resolver, $loop);
+                    $this->state = FutureState::WAIT_TICK;
+                    $this->checkWaitingTime();
+                } catch (\Throwable $e) {
+                    $this->state = FutureState::REJECTED;
+                    $this->loop->removeFuture($this);
+                    $this->resolver->resolve($e);
+                }
+            })();
         }
-
-        $this->result = $result;
-        $this->state = FutureState::FULFILLED;
-
-        return $this->result;
-    }
-
-    public function getId(): string
-    {
-        return $this->id;
-    }
-
-    public function getState(): FutureState
-    {
-        return $this->state;
-    }
-
-    public function getTickFiber(): Fiber
-    {
-        return $this->fiber;
     }
 
     public function cancel(): void

@@ -43,7 +43,8 @@
     "php-http/guzzle7-adapter": "^1.0",
     "phpstan/phpstan": "^1.9",
     "phpunit/phpunit": "^9.5",
-    "react/async": "^4.1"
+    "react/async": "^4.1",
+    "react/promise-timer": "^1.9"
   },
   "autoload": {
     "psr-4": {
