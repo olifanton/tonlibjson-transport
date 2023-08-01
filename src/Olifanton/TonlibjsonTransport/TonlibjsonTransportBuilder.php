@@ -2,13 +2,10 @@
 
 namespace Olifanton\TonlibjsonTransport;
 
+use Olifanton\TonlibjsonTransport\Async\Executor;
 use Olifanton\TonlibjsonTransport\Exceptions\BuilderException;
 use Olifanton\TonlibjsonTransport\Exceptions\LibraryLocationException;
 use Olifanton\TonlibjsonTransport\Helpers\HttpClientFactory;
-use Olifanton\TonlibjsonTransport\Pool\Client\Factories\BlockingPoolFactory;
-use Olifanton\TonlibjsonTransport\Pool\LiteServer\DefaultPool;
-use Olifanton\TonlibjsonTransport\Pool\LiteServer\RandomSelector;
-use Olifanton\TonlibjsonTransport\Pool\LiteServer\Selector;
 use Olifanton\TonlibjsonTransport\Tonlibjson\TonlibInstance;
 use Psr\Log\LoggerInterface;
 
@@ -27,15 +24,16 @@ class TonlibjsonTransportBuilder
      */
     private ?array $liteServers = null;
 
-    private ?Selector $selector = null;
-
-    private ?LiteServerRepository $liteServerRepository = null;
-
-    private ?ClientPoolFactory $clientPoolFactory = null;
+    private ?string $config = null;
 
     private VerbosityLevel $verbosityLevel = VerbosityLevel::ERROR;
 
-    public function __construct(bool $isMainnet = true)
+    private ?string $keyStoreTypeDirectory = null;
+
+    public function __construct(
+        private readonly Executor $executor,
+        bool $isMainnet = true,
+    )
     {
         $this->configUrl = $isMainnet ? ConfigUrl::MAINNET->value : ConfigUrl::TESTNET->value;
     }
@@ -61,18 +59,17 @@ class TonlibjsonTransportBuilder
         return $this;
     }
 
-    public function setLiteServerRepository(LiteServerRepository $liteServerRepository): self
-    {
-        $this->liteServerRepository = $liteServerRepository;
-
-        return $this;
-    }
-
     /**
      * @param LiteServer[] $liteServers
      */
     public function setLiteServers(array $liteServers): self
     {
+        foreach ($liteServers as $ls) {
+            if (!$ls instanceof LiteServer) {
+                throw new \InvalidArgumentException();
+            }
+        }
+
         $this->liteServers = $liteServers;
 
         return $this;
@@ -92,16 +89,16 @@ class TonlibjsonTransportBuilder
         return $this;
     }
 
-    public function setSelector(Selector $selector): self
+    public function setKeyStoreTypeDirectory(string $keyStoreTypeDirectory): self
     {
-        $this->selector = $selector;
+        $this->keyStoreTypeDirectory = $keyStoreTypeDirectory;
 
         return $this;
     }
 
-    public function setClientPoolFactory(ClientPoolFactory $clientPoolFactory): self
+    public function setConfig(string $config): self
     {
-        $this->clientPoolFactory = $clientPoolFactory;
+        $this->config = $config;
 
         return $this;
     }
@@ -111,43 +108,30 @@ class TonlibjsonTransportBuilder
      */
     public function build(): TonlibjsonTransport
     {
-        $tonlib = $this->createTonlib();
-        $tonlib->setVerbosityLevel($this->verbosityLevel);
-        $instance = new TonlibjsonTransport(
-            $tonlib,
-        );
+        try {
+            $tonlib = $this->createTonlib();
+            $tonlib->setVerbosityLevel($this->verbosityLevel);
+            $config = $this->getConfig();
 
-        if ($this->logger) {
-            $instance->setLogger($this->logger);
+            if (!empty($this->liteServers)) {
+                $config = $this->replaceLiteServers($config, $this->liteServers);
+            }
+
+            $instance = new TonlibjsonTransport(
+                $tonlib,
+                $this->executor,
+                $config,
+                $this->keyStoreTypeDirectory ?? sys_get_temp_dir(),
+            );
+
+            if ($this->logger) {
+                $instance->setLogger($this->logger);
+            }
+
+            return $instance;
+        } catch (\Throwable $e) {
+            throw new BuilderException($e->getMessage(), $e->getCode(), $e);
         }
-
-        return $instance;
-    }
-
-    /**
-     * @deprecated
-     */
-    protected function createClientPool(TonlibInstance $tonlib): ClientPool
-    {
-        $factory = $this->clientPoolFactory ?? new BlockingPoolFactory();
-        $instance = $factory->getPool($tonlib);
-
-        if ($this->logger) {
-            $instance->setLogger($this->logger);
-        }
-
-        return $instance;
-    }
-
-    /**
-     * @deprecated
-     */
-    protected function createLiteServerPool(): LiteServerPool
-    {
-        return new DefaultPool(
-            $this->selector ?? $this->createSelector(),
-            $this->getLiteServers(),
-        );
     }
 
     /**
@@ -169,11 +153,6 @@ class TonlibjsonTransportBuilder
         }
     }
 
-    protected function createSelector(): Selector
-    {
-        return new RandomSelector();
-    }
-
     /**
      * @throws BuilderException
      */
@@ -192,42 +171,32 @@ class TonlibjsonTransportBuilder
         return $this->locator;
     }
 
-    /**
-     * @return LiteServer[]
-     * @throws BuilderException
-     * @deprecated
-     */
-    protected function getLiteServers(): array
+    protected function getConfig(): string
     {
-        if (!$this->liteServers) {
-            try {
-                return $this->getLiteServerRepository()->getList();
-            } catch (Exceptions\LiteServerFetchingException $e) {
-                throw new BuilderException($e->getMessage(), $e->getCode(), $e);
-            }
+        if ($this->config) {
+            return $this->config;
         }
 
-        return $this->liteServers;
+        return $this->downloadConfig($this->configUrl);
+    }
+
+    protected function downloadConfig(string $configUrl): string
+    {
+        $httpClient = HttpClientFactory::discovered();
+        $response = $httpClient->get($configUrl);
+
+        return $response->getBody()->getContents();
     }
 
     /**
-     * @deprecated
+     * @param LiteServer[] $liteServers
+     * @throws \JsonException
      */
-    protected function getLiteServerRepository(): LiteServerRepository
+    protected final function replaceLiteServers(string $config, array $liteServers): string
     {
-        if (!$this->liteServerRepository) {
-            $liteServerRepository = new HttpLiteServerRepository(
-                HttpClientFactory::discovered(),
-                $this->configUrl,
-            );
+        $parsedConfig = json_decode($config, true, flags: JSON_THROW_ON_ERROR);
+        $parsedConfig["liteservers"] = array_map(static fn (LiteServer $ls): array => $ls->toArray(), $liteServers);
 
-            if ($this->logger) {
-                $liteServerRepository->setLogger($this->logger);
-            }
-
-            return $liteServerRepository;
-        }
-
-        return $this->liteServerRepository;
+        return json_encode($parsedConfig, JSON_THROW_ON_ERROR);
     }
 }

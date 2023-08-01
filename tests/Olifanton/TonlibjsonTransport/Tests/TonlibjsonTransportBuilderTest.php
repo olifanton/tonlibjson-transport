@@ -2,15 +2,12 @@
 
 namespace Olifanton\Ton\Tests;
 
-use Olifanton\Ton\Tests\Stubs\StubLiteServerRepository;
+use Olifanton\Ton\Tests\Stubs\RawLs;
 use Olifanton\Ton\Tests\Stubs\StubLocator;
 use Olifanton\Ton\Transport;
 use Olifanton\TonlibjsonTransport\Exceptions\BuilderException;
-use Olifanton\TonlibjsonTransport\Pool\Client\Factories\BlockingPoolFactory;
-use Olifanton\TonlibjsonTransport\Pool\LiteServer\RandomSelector;
 use Olifanton\TonlibjsonTransport\Tonlibjson\TonlibInstance;
 use Olifanton\TonlibjsonTransport\TonlibjsonTransportBuilder;
-use Olifanton\TonlibjsonTransport\VerbosityLevel;
 use PHPUnit\Framework\TestCase;
 
 class TonlibjsonTransportBuilderTest extends TestCase
@@ -20,7 +17,7 @@ class TonlibjsonTransportBuilderTest extends TestCase
      */
     public function testCreateWithDefaults(): void
     {
-        $instance = new TonlibjsonTransportBuilder(true);
+        $instance = new TonlibjsonTransportBuilder();
         $instance->setLibDirectory(BIN_LIB_PATH);
         $transport = $instance->build();
         $this->assertInstanceOf(Transport::class, $transport);
@@ -41,12 +38,9 @@ class TonlibjsonTransportBuilderTest extends TestCase
                 return $mock;
             }
         })
-            ->setLiteServerRepository(new StubLiteServerRepository())
             ->setConfigUrl("https://example.com/example.json")
-            ->setLiteServers((new StubLiteServerRepository())->getList())
-            ->setLocator(new StubLocator())
-            ->setSelector(new RandomSelector())
-            ->setClientPoolFactory(new BlockingPoolFactory());
+            ->setLiteServers(RawLs::mapped())
+            ->setLocator(new StubLocator());
         $transport = $instance->build();
         $this->assertInstanceOf(Transport::class, $transport);
     }

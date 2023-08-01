@@ -27,4 +27,16 @@ class LiteServer
             "id" => $id,
         ]);
     }
+
+    public function toArray(): array
+    {
+        return [
+            "ip" => $this->ip,
+            "port" => $this->port,
+            "id" => [
+                "@type" => $this->id->type,
+                "key" => $this->id->key,
+            ],
+        ];
+    }
 }

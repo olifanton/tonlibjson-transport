@@ -2,85 +2,28 @@
 
 namespace Olifanton\TonlibjsonTransport\Async;
 
-use Swoole\Coroutine\System;
-
-class Loop
+/**
+ * Async loop
+ */
+interface Loop
 {
-    private bool $isRunning = false;
+    /**
+     * Starts the loop.
+     */
+    public function run(): void;
 
     /**
-     * @var Future[]
+     * Stops the loop.
      */
-    private array $futures = [];
+    public function stop(): void;
 
     /**
-     * @var ?callable
+     * Sets a closure to be called on every tick of the loop.
      */
-    private $onTick = null;
-
-    private ?int $cid = null;
+    public function onTick(callable $onTick): void;
 
     /**
-     * @return void
+     * Non-blocking sleep.
      */
-    public function run(): void
-    {
-        if (!$this->isRunning) {
-            $this->isRunning = true;
-
-            $this->cid = go(function() {
-                while ($this->isRunning) {
-                    var_dump("T");
-                    foreach ($this->futures as $future) {
-                        $state = $future->getState();
-
-                        if ($state === FutureState::WAIT_TICK) {
-                            $future->tick();
-                        } elseif ($state === FutureState::FULFILLED) {
-                            $this->removeFuture($future);
-                        }
-                    }
-
-                    if ($this->onTick) {
-                        ($this->onTick)();
-                    }
-
-                    System::sleep(1);
-                }
-            });
-        }
-    }
-
-    public function stop(): void
-    {
-        if ($this->isRunning) {
-            $this->isRunning = false;
-
-            foreach ($this->futures as $future) {
-                $future->cancel();
-            }
-
-            $this->futures = [];
-            \OpenSwoole\Coroutine::cancel($this->cid);
-        }
-    }
-
-    public function addFuture(Future $future): void
-    {
-        $this->futures[$future->getId()] = $future;
-    }
-
-    public function removeFuture(Future $future): void
-    {
-        $id = $future->getId();
-
-        if (isset($this->futures[$id])) {
-            unset($this->futures[$id]);
-        }
-    }
-
-    public function onTick(callable $onTick): void
-    {
-        $this->onTick = $onTick;
-    }
+    public function sleep(int $milliseconds): void;
 }

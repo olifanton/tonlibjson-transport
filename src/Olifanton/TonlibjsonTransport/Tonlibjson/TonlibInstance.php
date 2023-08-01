@@ -53,7 +53,6 @@ class TonlibInstance
 
     public function execute(Client $client, string $request): ?string
     {
-        /** @var ?CData $data */
         $data = $this
             ->ffi
             ->tonlib_client_json_execute(
@@ -70,10 +69,8 @@ class TonlibInstance
 
     public function receive(Client $client, float $timeout): ?string
     {
-        /** @var ?CData $data */
         $data = $this
             ->ffi
-            /**  */
             ->tonlib_client_json_receive(
                 $client->ptr,
                 $timeout,
