@@ -4,12 +4,14 @@ namespace Olifanton\TonlibjsonTransport\Async\React;
 
 use Olifanton\TonlibjsonTransport\Async\Loop;
 use Olifanton\TonlibjsonTransport\Async\Traits\GenericLoop;
+use React\EventLoop\TimerInterface;
+use function React\Async\async;
 
 class ReactLoop implements Loop
 {
     use GenericLoop;
 
-    private ?\React\Promise\Promise $loopPromise = null;
+    private ?TimerInterface $timer = null;
 
     /**
      * @throws \Throwable
@@ -18,20 +20,16 @@ class ReactLoop implements Loop
     {
         if (!$this->isRunning) {
             $this->isRunning = true;
-
-            $this->loopPromise = \React\Async\async(function () {
-                while ($this->isRunning) {
-                    $this->tickRoutine();
-                    $this->sleep(500);
-                }
-            })();
+            $this->timer = \React\EventLoop\Loop::addPeriodicTimer(0.5, async(function () {
+                $this->tickRoutine();
+            }));
         }
     }
 
     public function stop(): void
     {
-        if ($this->isRunning) {
-            $this->loopPromise->cancel();
+        if ($this->isRunning && $this->timer) {
+            \React\EventLoop\Loop::cancelTimer($this->timer);
         }
 
         $this->stopInternal();

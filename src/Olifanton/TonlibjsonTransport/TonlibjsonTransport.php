@@ -171,7 +171,6 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
                 $excludedTypes = [
                     "updateSyncState"
                 ];
-
                 $result = $this
                     ->tonlib
                     ->receive(
