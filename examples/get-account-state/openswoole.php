@@ -9,7 +9,7 @@ use Olifanton\TonlibjsonTransport\TL\GetAccountState;
 use Olifanton\TonlibjsonTransport\TonlibjsonTransportBuilder;
 use Olifanton\TonlibjsonTransport\VerbosityLevel;
 
-define("ROOT_DIR", dirname(__DIR__));
+define("ROOT_DIR", dirname(__DIR__, 2));
 require_once ROOT_DIR . "/vendor/autoload.php";
 
 $logger = new class extends \Psr\Log\AbstractLogger
