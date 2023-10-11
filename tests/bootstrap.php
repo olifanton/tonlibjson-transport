@@ -3,6 +3,7 @@
 require dirname(__DIR__) . "/vendor/autoload.php";
 
 define("BIN_LIB_PATH", dirname(__DIR__) . "/lib/");
+define("TEST_STUBDATA_DIR", __DIR__ . "/data");
 
 $binaryName = \Olifanton\TonlibjsonTransport\GenericLocator::locateName();
 
