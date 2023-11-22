@@ -12,6 +12,10 @@ class OpenSwooleLoop implements Loop
 
     private ?int $cid = null;
 
+    public function __construct(
+        private readonly int $interval,
+    ) {}
+
     /**
      * @throws \Throwable
      */
@@ -23,7 +27,7 @@ class OpenSwooleLoop implements Loop
             $this->cid = go(function() {
                 while ($this->isRunning) {
                     $this->tickRoutine();
-                    $this->sleep(500);
+                    $this->sleep($this->interval);
                 }
             });
         }

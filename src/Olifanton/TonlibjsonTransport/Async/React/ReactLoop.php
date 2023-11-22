@@ -13,6 +13,10 @@ class ReactLoop implements Loop
 
     private ?TimerInterface $timer = null;
 
+    public function __construct(
+        private readonly int $interval,
+    ) {}
+
     /**
      * @throws \Throwable
      */
@@ -20,7 +24,7 @@ class ReactLoop implements Loop
     {
         if (!$this->isRunning) {
             $this->isRunning = true;
-            $this->timer = \React\EventLoop\Loop::addPeriodicTimer(0.5, async(function () {
+            $this->timer = \React\EventLoop\Loop::addPeriodicTimer($this->interval / 1000, async(function () {
                 $this->tickRoutine();
             }));
         }

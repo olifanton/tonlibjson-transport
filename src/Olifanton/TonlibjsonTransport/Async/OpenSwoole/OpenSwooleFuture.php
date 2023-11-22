@@ -79,16 +79,6 @@ class OpenSwooleFuture implements Future, Tickable
         }
     }
 
-    public function getId(): string
-    {
-        return $this->id;
-    }
-
-    public function getState(): FutureState
-    {
-        return $this->state;
-    }
-
     public function cancel(): void
     {
         if ($this->state === FutureState::WAIT_TICK) {

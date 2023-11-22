@@ -10,13 +10,17 @@ class OpenSwooleExecutor implements Executor
 {
     private ?OpenSwooleLoop $loop = null;
 
+    public function __construct(
+        private readonly int $interval = 500,
+    ) {}
+
     /**
      * @inheritDoc
      */
     public function ensureLoop(): Loop
     {
         if (!$this->loop) {
-            $this->loop = new OpenSwooleLoop();
+            $this->loop = new OpenSwooleLoop($this->interval);
         }
 
         return $this->loop;

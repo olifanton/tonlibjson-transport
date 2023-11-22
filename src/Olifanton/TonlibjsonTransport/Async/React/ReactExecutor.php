@@ -10,10 +10,14 @@ class ReactExecutor implements Executor
 {
     private ?ReactLoop $loop = null;
 
+    public function __construct(
+        private readonly int $interval = 500,
+    ) {}
+
     public function ensureLoop(): Loop
     {
         if (!$this->loop) {
-            $this->loop = new ReactLoop();
+            $this->loop = new ReactLoop($this->interval);
         }
 
         return $this->loop;

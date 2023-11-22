@@ -7,6 +7,8 @@ use Olifanton\Interop\Address;
 use Olifanton\Interop\Boc\Cell;
 use Olifanton\Ton\AddressState;
 use Olifanton\Ton\Contract;
+use Olifanton\Ton\Contracts\Exceptions\ContractException;
+use Olifanton\Ton\Contracts\Messages\Exceptions\ResponseStackParsingException;
 use Olifanton\Ton\Contracts\Messages\ExternalMessage;
 use Olifanton\Ton\Contracts\Messages\ResponseStack;
 use Olifanton\Ton\Exceptions\TransportException;
@@ -16,8 +18,11 @@ use Olifanton\TonlibjsonTransport\Async\Executor;
 use Olifanton\TonlibjsonTransport\Async\Future;
 use Olifanton\TonlibjsonTransport\Async\FutureResolver;
 use Olifanton\TonlibjsonTransport\Async\Loop;
+use Olifanton\TonlibjsonTransport\Cache\SmcIdCache;
 use Olifanton\TonlibjsonTransport\Exceptions\LiteServerError;
 use Olifanton\TonlibjsonTransport\Exceptions\TonlibjsonTransportException;
+use Olifanton\TonlibjsonTransport\TL\Smc\MethodIdName;
+use Olifanton\TonlibjsonTransport\TL\Smc\RunGetMethod;
 use Olifanton\TonlibjsonTransport\TL\TLObject;
 use Olifanton\TonlibjsonTransport\Tonlibjson\Client;
 use Olifanton\TonlibjsonTransport\Tonlibjson\TonlibInstance;
@@ -29,7 +34,7 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
 {
     use LoggerAwareTrait;
 
-    public const TIMEOUT = 60;
+    private int $timeout = 60;
 
     private bool $isInitialized = false;
 
@@ -57,7 +62,54 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
      */
     public function runGetMethod(Contract|Address $contract, string $method, array $stack = []): ResponseStack
     {
-        // TODO: Implement runGetMethod() method.
+        try {
+            $address = $contract instanceof Contract ? $contract->getAddress() : $contract;
+        } catch (ContractException $e) {
+            throw new TransportException(
+                "Contract address error: " . $e->getMessage(),
+                0,
+                $e,
+            );
+        }
+
+        try {
+            $smcId = SmcIdCache::ensure($address, $this);
+        } catch (LiteServerError|TonlibjsonTransportException $e) {
+            throw new TransportException(
+                "Contract loading error: " . $e->getMessage(),
+                $e->getCode(),
+                $e,
+            );
+        }
+
+        try {
+            $executionResult = $this->execute(new RunGetMethod(
+                $smcId,
+                new MethodIdName($method),
+                $stack,
+            ));
+        } catch (LiteServerError|TonlibjsonTransportException $e) {
+            throw new TransportException(
+                "Execution exception: " . $e->getMessage(),
+                $e->getCode(),
+                $e,
+            );
+        }
+
+        $exitCode = $executionResult["exit_code"];
+
+        if (!in_array($exitCode, [0, 1], true)) {
+            throw new TransportException(
+                "Non-zero exit code, code: " . $exitCode,
+                $exitCode,
+            );
+        }
+
+        try {
+            return \Olifanton\TonlibjsonTransport\ResponseStack::parse($executionResult["stack"]);
+        } catch (ResponseStackParsingException $e) {
+            throw new TransportException($e->getMessage(), $e->getCode(), $e);
+        }
     }
 
     /**
@@ -106,6 +158,11 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
     public function getState(Address $address): AddressState
     {
         // TODO: Implement getState() method.
+    }
+
+    public function setTimeout(int $timeout): void
+    {
+        $this->timeout = $timeout;
     }
 
     /**
@@ -175,7 +232,7 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
                     ->tonlib
                     ->receive(
                         $this->client,
-                        self::TIMEOUT,
+                        $this->timeout,
                     );
 
                 if ($result) {
@@ -204,6 +261,7 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
                         $resolver->resolve(true);
                     }
                 },
+                $this->timeout,
             );
             $this->loop->run();
             $this->isInitialized = true;
@@ -248,7 +306,8 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
                     if ($response = $this->popResponse($extraId)) {
                         $resolver->resolve($this->tryExtractError($response) ?? $response);
                     }
-                }
+                },
+                $this->timeout,
             ) : null;
         } catch (\JsonException $e) {
             $errorMessage = sprintf(
@@ -299,7 +358,7 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
     {
         return sprintf(
             "%s:%s:%s",
-            time() + self::TIMEOUT,
+            time() + $this->timeout,
             0,
             mt_rand(),
         );

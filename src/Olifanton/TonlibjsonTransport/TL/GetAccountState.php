@@ -4,12 +4,16 @@ namespace Olifanton\TonlibjsonTransport\TL;
 
 use Olifanton\Interop\Address;
 
-class GetAccountState extends DynamicTLObject
+final class GetAccountState extends DynamicTLObject
 {
-    public function __construct(Address $address)
+    public function __construct(Address|AccountAddress $address)
     {
+        if ($address instanceof Address) {
+            $address = new AccountAddress($address);
+        }
+
         parent::__construct("getAccountState", [
-            "account_address" => new DynamicTLObject("accountAddress", ["account_address" => $address->toString()]),
+            "account_address" => $address,
         ]);
     }
 }

@@ -15,8 +15,7 @@ Asynchronous implementation of tonlibjson transport via PHP FFI.
 To work in non-blocking mode the following can be used: 
 
 - [OpenSwoole](https://openswoole.com/) extension;
-- [ReactPHP](https://docs.react-async.com/) package;
-- [AMPHP](https://amphp.org/) package (WIP).
+- [ReactPHP](https://docs.react-async.com/) package.
 
 ## Documentation
 
