@@ -1,0 +1,36 @@
+#!/usr/bin/env php
+<?php
+
+$__vendorAutoloaderIncluded = false;
+
+if (isset($_composer_autoload_path)) {
+    require $_composer_autoload_path;
+    $__vendorAutoloaderIncluded = true;
+} else {
+    $path = __DIR__ . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, ["vendor", "autoload.php"]);
+
+    if (file_exists($path)) {
+        require __DIR__ . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, ["vendor", "autoload.php"]);
+        $__vendorAutoloaderIncluded = true;
+    } else {
+        // From `bin`
+        $path = dirname(__DIR__) . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, ["autoload.php"]);
+
+        if (file_exists($path)) {
+            require $path;
+            $__vendorAutoloaderIncluded = true;
+        }
+    }
+}
+
+if (!$__vendorAutoloaderIncluded) {
+    fwrite(
+        STDERR,
+        "Cannot find `vendor/autoload.php` file",
+    );
+
+    die(1);
+}
+
+/** @noinspection PhpUnhandledExceptionInspection */
+(new \Olifanton\TonlibjsonTransport\Helpers\ConsoleApp())->run();

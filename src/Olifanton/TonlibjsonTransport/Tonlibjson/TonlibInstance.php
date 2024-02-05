@@ -4,13 +4,9 @@ declare(strict_types=1);
 
 namespace Olifanton\TonlibjsonTransport\Tonlibjson;
 
-use FFI\CData;
 use FFI\Scalar\Type;
 use Olifanton\TonlibjsonTransport\VerbosityLevel;
 
-/**
- * @noinspection
- */
 class TonlibInstance
 {
     private \FFI $ffi;
@@ -30,9 +26,12 @@ class TonlibInstance
 
     public function create(): Client
     {
+        /** @noinspection PhpUnhandledExceptionInspection */
+        $clientId = hash("crc32", random_bytes(128));
+
         return new Client(
             $this->ffi->tonlib_client_json_create(),
-            hash("crc32", random_bytes(128))
+            $clientId,
         );
     }
 

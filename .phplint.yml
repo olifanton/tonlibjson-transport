@@ -8,4 +8,4 @@ exclude:
   - vendor
 warning: true
 memory-limit: -1
-cache: ./build/.phplint.cache
+cache: ./build/cache/.phplint.cache

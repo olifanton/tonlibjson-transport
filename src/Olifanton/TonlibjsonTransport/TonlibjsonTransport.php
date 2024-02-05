@@ -5,6 +5,7 @@ namespace Olifanton\TonlibjsonTransport;
 use Brick\Math\BigNumber;
 use Olifanton\Interop\Address;
 use Olifanton\Interop\Boc\Cell;
+use Olifanton\Interop\Bytes;
 use Olifanton\Ton\AddressState;
 use Olifanton\Ton\Contract;
 use Olifanton\Ton\Contracts\Exceptions\ContractException;
@@ -12,7 +13,10 @@ use Olifanton\Ton\Contracts\Messages\Exceptions\ResponseStackParsingException;
 use Olifanton\Ton\Contracts\Messages\ExternalMessage;
 use Olifanton\Ton\Contracts\Messages\ResponseStack;
 use Olifanton\Ton\Exceptions\TransportException;
+use Olifanton\Ton\Marshalling\Exceptions\MarshallingException;
+use Olifanton\Ton\Marshalling\Json\Hydrator;
 use Olifanton\Ton\Transport;
+use Olifanton\Ton\Transports\Toncenter\Responses\QueryFees;
 use Olifanton\TonlibjsonTransport\Async\Exceptions\FutureException;
 use Olifanton\TonlibjsonTransport\Async\Executor;
 use Olifanton\TonlibjsonTransport\Async\Future;
@@ -21,6 +25,7 @@ use Olifanton\TonlibjsonTransport\Async\Loop;
 use Olifanton\TonlibjsonTransport\Cache\SmcIdCache;
 use Olifanton\TonlibjsonTransport\Exceptions\LiteServerError;
 use Olifanton\TonlibjsonTransport\Exceptions\TonlibjsonTransportException;
+use Olifanton\TonlibjsonTransport\TL\DynamicTLObject;
 use Olifanton\TonlibjsonTransport\TL\Smc\MethodIdName;
 use Olifanton\TonlibjsonTransport\TL\Smc\RunGetMethod;
 use Olifanton\TonlibjsonTransport\TL\TLObject;
@@ -83,10 +88,20 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
         }
 
         try {
+            $sStack = GetterStackSerializer::serialize($stack);
+        } catch (\Throwable $e) {
+            throw new TransportException(
+                "Stack serialization error: " . $e->getMessage(),
+                $e->getCode(),
+                $e,
+            );
+        }
+
+        try {
             $executionResult = $this->execute(new RunGetMethod(
                 $smcId,
                 new MethodIdName($method),
-                $stack,
+                $sStack,
             ));
         } catch (LiteServerError|TonlibjsonTransportException $e) {
             throw new TransportException(
@@ -139,7 +154,52 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
                                 string|Cell|null $initCode = null,
                                 string|Cell|null $initData = null): BigNumber
     {
-        // TODO: Implement estimateFee() method.
+        try {
+            $createQuery = new DynamicTLObject(
+                'raw.createQuery',
+                [
+                    "body" => is_string($body)
+                        ? $body
+                        : Bytes::bytesToBase64($body->toBoc(false)),
+                    "init_code" => is_string($initCode) || is_null($initCode)
+                        ? (string)$initCode
+                        : Bytes::bytesToBase64($initCode->toBoc(false)),
+                    "init_data" => is_string($initData) || is_null($initData)
+                        ? (string)$initData
+                        : Bytes::bytesToBase64($initData->toBoc(false)),
+                    "destination" => [
+                        "account_address" => $address->toString(),
+                    ],
+                ]
+            );
+        } catch (\Throwable $e) {
+            throw new TonlibjsonTransportException(
+                "Query creation error: " . $e->getMessage(),
+                $e->getCode(),
+                $e
+            );
+        }
+
+        $queryInfo = $this->execute($createQuery);
+        $id = $queryInfo['id'] ?? null;
+
+        if (!$id) {
+            throw new TonlibjsonTransportException("Query info error");
+        }
+
+        try {
+            $fees = Hydrator::extract(QueryFees::class, $this->execute(new DynamicTLObject(
+                "query.estimateFees",
+                [
+                    "id" => $id,
+                    "ignore_chksig" => true,
+                ]
+            )));
+        } catch (MarshallingException $e) {
+            throw new TonlibjsonTransportException("Response deserialization error: " . $e->getMessage(), $e->getCode(), $e);
+        }
+
+        return $fees->sourceFees->sum();
     }
 
     /**
@@ -403,7 +463,6 @@ class TonlibjsonTransport implements Transport, LoggerAwareInterface
 
     private function tryExtractError(array $response): ?LiteServerError
     {
-        // {"@type":"error","code":500,"message":"LITE_SERVER_NETWORKadnl query timeout","@extra":"1688889065:0:594173408"}
         if (isset($response["@type"]) && $response["@type"] === "error") {
             return new LiteServerError(
                 $response["message"] ?? "Unknown lite server error",

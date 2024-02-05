@@ -13,7 +13,7 @@ class Downloader implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
 
-    private string $baseUrl = "https://github.com/ton-blockchain/ton/releases/download/v2023.06/";
+    private string $baseUrl = "https://github.com/ton-blockchain/ton/releases/download/v2024.01/";
 
     public function __construct(
         private readonly HttpMethodsClientInterface $httpClient,
@@ -43,11 +43,24 @@ class Downloader implements LoggerAwareInterface
         }
 
         $url = $this->baseUrl . $lib;
-        $this
-            ->logger
-            ?->info("Start downloading from " . $url);
-        $response = $this->httpClient->get($url);
-        $status = $response->getStatusCode();
+
+        download: {
+            $this
+                ->logger
+                ?->info("Start downloading from " . $url);
+            $response = $this->httpClient->get($url);
+            $status = $response->getStatusCode();
+        }
+
+        if ($status === 301 || $status === 302) {
+            $url = $response->getHeader("Location")[0] ?? null;
+
+            if (!$url) {
+                throw new \RuntimeException("Bad redirect header");
+            }
+
+            goto download;
+        }
 
         if (!($status >= 200 && $status < 299)) {
             throw new \RuntimeException("Bad HTTP response status: " . $status);

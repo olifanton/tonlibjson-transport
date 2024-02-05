@@ -4,8 +4,7 @@ parameters:
   paths:
     - src
     - tests
-    - examples
-  tmpDir: build
+  tmpDir: build/cache/phpstan
   ignoreErrors:
     - message: '#Call to an undefined method FFI::#'
     - message: '#Call to an undefined method FFI::\\TypedArrays\\Uint8Array::\$length#'
